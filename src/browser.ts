@@ -1,7 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import { mkdirSync, readdirSync, renameSync } from 'fs'
 import { join } from 'path'
-import { CLICK_VIS_SCRIPT, convertToMp4 } from './recorder.js'
+import { CLICK_VIS_SCRIPT, convertToMp4, convertToMp4WithTrim } from './recorder.js'
 
 export interface RecordingOptions {
   /** Output directory for HAR, video, screenshots. Created if missing. */
@@ -16,11 +16,24 @@ export interface RecordingOptions {
   ignoreHTTPSErrors?: boolean
 }
 
+export interface PauseSegment {
+  /** Seconds from recording start when pause began */
+  start: number
+  /** Seconds from recording start when pause ended */
+  end: number
+}
+
 export interface RecordingSession {
   browser: Browser
   context: BrowserContext
   page: Page
   outputDir: string
+  /** @internal wall-clock time when recording started */
+  _startTime: number
+  /** @internal pause segments to trim from video */
+  _pauses: PauseSegment[]
+  /** @internal timestamp of current pause start, or null */
+  _pauseStart: number | null
 }
 
 export interface RecordingResult {
@@ -69,7 +82,30 @@ export async function launchWithRecording(
   const page = await context.newPage()
   await page.addInitScript(CLICK_VIS_SCRIPT)
 
-  return { browser, context, page, outputDir }
+  return { browser, context, page, outputDir, _startTime: Date.now(), _pauses: [], _pauseStart: null }
+}
+
+/**
+ * Mark the start of an idle period (e.g. waiting for user input).
+ * The paused segment will be trimmed from the final video.
+ */
+export function pauseRecording(session: RecordingSession): void {
+  if (session._pauseStart === null) {
+    session._pauseStart = (Date.now() - session._startTime) / 1000
+  }
+}
+
+/**
+ * Mark the end of an idle period. Recording resumes normally.
+ */
+export function resumeRecording(session: RecordingSession): void {
+  if (session._pauseStart !== null) {
+    session._pauses.push({
+      start: session._pauseStart,
+      end: (Date.now() - session._startTime) / 1000,
+    })
+    session._pauseStart = null
+  }
 }
 
 /**
@@ -95,7 +131,11 @@ export async function finalize(session: RecordingSession): Promise<RecordingResu
 
     mp4Path = join(outputDir, 'recording.mp4')
     try {
-      convertToMp4(webmPath, mp4Path)
+      if (session._pauses.length > 0) {
+        convertToMp4WithTrim(webmPath, mp4Path, session._pauses)
+      } else {
+        convertToMp4(webmPath, mp4Path)
+      }
     } catch {
       mp4Path = null
     }

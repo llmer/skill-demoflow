@@ -98,7 +98,7 @@ Write a complete Playwright script to `scripts/demo-run.ts` that:
 
 - Imports from `skill-demoflow`:
   ```typescript
-  import { launchWithRecording, finalize, requestInput } from 'skill-demoflow'
+  import { launchWithRecording, finalize, requestInput, pauseRecording, resumeRecording } from 'skill-demoflow'
   ```
 - Uses the **target config** to set:
   - `BASE_URL` from the target's Connection section
@@ -131,6 +131,9 @@ async function main() {
 
   try {
     // Steps here, using target-specific values
+
+    // When waiting for user input, pass session to auto-trim idle time from video:
+    const otp = await requestInput(session.outputDir, 'Enter the OTP code', { session })
   } catch (err) {
     await page.screenshot({ path: 'output/scenario-name/error.png' })
     throw err
@@ -179,7 +182,7 @@ When you see these in the scenario, handle them in the generated script:
 
 | Directive | Generated Code |
 |-----------|---------------|
-| `[prompt: message]` | `const val = await requestInput(outputDir, "message")` |
+| `[prompt: message]` | `const val = await requestInput(outputDir, "message", { session })` |
 | `[save: var from url]` | `const var = page.url().match(/pattern/)[1]` |
 | `[pause: Ns]` | `await new Promise(r => setTimeout(r, N * 1000))` |
 | `[assert: condition]` | Appropriate Playwright assertion |

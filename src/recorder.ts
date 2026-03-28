@@ -40,3 +40,44 @@ export function convertToMp4(webmPath: string, mp4Path: string): void {
     stdio: 'pipe',
   })
 }
+
+/**
+ * Convert webm to mp4, trimming out pause segments (e.g. idle time waiting for user input).
+ * Uses ffmpeg trim + concat filters to splice out the paused ranges.
+ */
+export function convertToMp4WithTrim(
+  webmPath: string,
+  mp4Path: string,
+  pauses: { start: number; end: number }[],
+): void {
+  // Build keep-segments from the gaps between pauses
+  const sorted = [...pauses].sort((a, b) => a.start - b.start)
+  const keeps: { start: number; end: string }[] = []
+  let cursor = 0
+
+  for (const pause of sorted) {
+    if (pause.start > cursor) {
+      keeps.push({ start: cursor, end: pause.start.toFixed(3) })
+    }
+    cursor = pause.end
+  }
+  // Final segment from last pause end to video end (no end = rest of video)
+  keeps.push({ start: cursor, end: '' })
+
+  if (keeps.length === 1 && keeps[0].start === 0 && keeps[0].end === '') {
+    // Nothing to trim, fall back to simple conversion
+    return convertToMp4(webmPath, mp4Path)
+  }
+
+  const trims = keeps.map((k, i) => {
+    const endArg = k.end ? `:end=${k.end}` : ''
+    return `[0:v]trim=start=${k.start.toFixed(3)}${endArg},setpts=PTS-STARTPTS[v${i}]`
+  })
+  const concatInputs = keeps.map((_, i) => `[v${i}]`).join('')
+  const filter = `${trims.join('; ')}; ${concatInputs}concat=n=${keeps.length}:v=1:a=0[out]`
+
+  execSync(
+    `ffmpeg -i "${webmPath}" -filter_complex "${filter}" -map "[out]" -c:v libx264 -preset fast -y "${mp4Path}"`,
+    { stdio: 'pipe' },
+  )
+}

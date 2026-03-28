@@ -13,7 +13,7 @@
   },
   "files": [
     "dist",
-    "skills",
+    "demo",
     "examples"
   ],
   "scripts": {

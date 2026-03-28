@@ -24,6 +24,7 @@ const TITLE_BAR_HEIGHT = 52
 const ADDRESS_BAR_HEIGHT = 36
 const CHROME_HEIGHT = TITLE_BAR_HEIGHT + ADDRESS_BAR_HEIGHT
 const WINDOW_TOP_MARGIN = 80
+const WINDOW_BOTTOM_EDGE = 8
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -32,13 +33,15 @@ function escapeHtml(str: string): string {
 function computeLayout(
   viewport: { width: number; height: number },
   resolution: { width: number; height: number },
+  chromeHeight: number = CHROME_HEIGHT,
+  bottomEdge: number = 0,
 ) {
   const contentX = Math.round((resolution.width - viewport.width) / 2)
-  const contentY = WINDOW_TOP_MARGIN + CHROME_HEIGHT
+  const contentY = WINDOW_TOP_MARGIN + chromeHeight
   const windowX = contentX
   const windowY = WINDOW_TOP_MARGIN
   const windowWidth = viewport.width
-  const windowHeight = CHROME_HEIGHT + viewport.height
+  const windowHeight = chromeHeight + viewport.height + bottomEdge
   return { contentX, contentY, windowX, windowY, windowWidth, windowHeight }
 }
 
@@ -51,8 +54,7 @@ function macosFrameHtml(
   resolution: { width: number; height: number },
   options: DesktopFrameOptions,
 ): string {
-  const layout = computeLayout(viewport, resolution)
-  const url = options.url ?? 'https://example.com'
+  const layout = computeLayout(viewport, resolution, TITLE_BAR_HEIGHT, WINDOW_BOTTOM_EDGE)
   const title = options.title ?? 'Untitled'
 
   return `<!DOCTYPE html>
@@ -151,57 +153,15 @@ function macosFrameHtml(
     white-space: nowrap;
   }
 
-  .addressbar {
-    height: ${ADDRESS_BAR_HEIGHT}px;
-    background: rgba(246, 246, 246, 0.94);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    gap: 8px;
-  }
-
-  .nav-buttons {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-
-  .nav-btn {
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #999;
-    font-size: 14px;
-  }
-
-  .url-pill {
-    flex: 1;
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 6px;
-    padding: 4px 12px;
-    font-size: 12px;
-    font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
-    color: #555;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .lock-icon {
-    color: #999;
-    font-size: 11px;
-  }
-
   .content-area {
     width: ${viewport.width}px;
     height: ${viewport.height}px;
     background: #ffffff;
+  }
+
+  .bottom-edge {
+    height: ${WINDOW_BOTTOM_EDGE}px;
+    background: rgba(246, 246, 246, 0.94);
   }
 </style>
 </head>
@@ -217,17 +177,8 @@ function macosFrameHtml(
         <div class="tab">${escapeHtml(title)}</div>
       </div>
     </div>
-    <div class="addressbar">
-      <div class="nav-buttons">
-        <div class="nav-btn">\u276E</div>
-        <div class="nav-btn">\u276F</div>
-      </div>
-      <div class="url-pill">
-        <span class="lock-icon">\uD83D\uDD12</span>
-        <span>${escapeHtml(url)}</span>
-      </div>
-    </div>
     <div class="content-area"></div>
+    <div class="bottom-edge"></div>
   </div>
 </body>
 </html>`
@@ -506,7 +457,10 @@ export async function renderFrame(
   await page.screenshot({ path: pngPath, type: 'png' })
   await browser.close()
 
-  const layout = computeLayout(viewport, resolution)
+  const style = options.style ?? 'macos'
+  const chromeHeight = style === 'macos' ? TITLE_BAR_HEIGHT : CHROME_HEIGHT
+  const bottomEdge = style === 'macos' ? WINDOW_BOTTOM_EDGE : 0
+  const layout = computeLayout(viewport, resolution, chromeHeight, bottomEdge)
   return {
     pngPath,
     contentX: layout.contentX,

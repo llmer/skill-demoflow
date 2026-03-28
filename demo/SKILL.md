@@ -26,7 +26,8 @@ When `$ARGUMENTS` is `init`, you explore the project and bootstrap `.demoflow/`.
 ### What to do
 
 1. **Ensure runtime dependencies** are installed:
-   - Check if `skill-demoflow` is in `package.json`. If not: `npm install --save-dev ./.claude/skills/demo/lib`
+   - Verify the skill lib exists: `.claude/skills/demo/lib/index.js` (installed by `skills add`)
+   - Check if `@playwright/test` is in `package.json`. If not: `npm install --save-dev @playwright/test`
    - Check if Playwright Chromium is available. If not: `npx playwright install chromium`
 
 2. **Explore the codebase** using the Explore agent:
@@ -96,9 +97,9 @@ If `--target <name>` is present in arguments, use that target. Otherwise use the
 
 Write a complete Playwright script to `scripts/demo-run.ts` that:
 
-- Imports from `skill-demoflow`:
+- Imports from the skill lib (path relative to `scripts/`):
   ```typescript
-  import { launchWithRecording, finalize, requestInput, pauseRecording, resumeRecording } from 'skill-demoflow'
+  import { launchWithRecording, finalize, requestInput, pauseRecording, resumeRecording } from '../.claude/skills/demo/lib/index.js'
   ```
 - Uses the **target config** to set:
   - `BASE_URL` from the target's Connection section
@@ -115,7 +116,7 @@ Write a complete Playwright script to `scripts/demo-run.ts` that:
 **Key pattern:**
 
 ```typescript
-import { launchWithRecording, finalize, requestInput } from 'skill-demoflow'
+import { launchWithRecording, finalize, requestInput } from '../.claude/skills/demo/lib/index.js'
 
 const BASE_URL = '...'         // from target
 const TEST_EMAIL = '...'       // from target

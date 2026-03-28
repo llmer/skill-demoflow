@@ -2,6 +2,3 @@ node_modules/
 dist/
 output/
 .agents/
-demo/lib/*.js
-demo/lib/*.d.ts
-demo/lib/*.map

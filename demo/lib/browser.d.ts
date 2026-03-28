@@ -1,0 +1,71 @@
+import { type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { type DesktopFrameOptions } from './frame.js';
+export interface RecordingOptions {
+    /** Output directory for HAR, video, screenshots. Created if missing. */
+    outputDir: string;
+    /** Browser viewport size. */
+    viewport?: {
+        width: number;
+        height: number;
+    };
+    /** Run headed (default true). */
+    headed?: boolean;
+    /** Slow down actions by this many ms (default 100). */
+    slowMo?: number;
+    /** Ignore HTTPS errors (default true). */
+    ignoreHTTPSErrors?: boolean;
+    /** Wrap video in a desktop frame. Default: true (macOS style). Pass false to disable. */
+    desktopFrame?: boolean | DesktopFrameOptions;
+}
+export interface PauseSegment {
+    /** Seconds from recording start when pause began */
+    start: number;
+    /** Seconds from recording start when pause ended */
+    end: number;
+}
+export interface RecordingSession {
+    browser: Browser;
+    context: BrowserContext;
+    page: Page;
+    outputDir: string;
+    /** @internal wall-clock time when recording started */
+    _startTime: number;
+    /** @internal pause segments to trim from video */
+    _pauses: PauseSegment[];
+    /** @internal timestamp of current pause start, or null */
+    _pauseStart: number | null;
+    /** @internal resolved desktop frame options, or null if disabled */
+    _frameOptions: DesktopFrameOptions | null;
+    /** @internal viewport used for recording */
+    _viewport: {
+        width: number;
+        height: number;
+    };
+}
+export interface RecordingResult {
+    harPath: string;
+    mp4Path: string | null;
+    webmPath: string | null;
+}
+/**
+ * Launch a Chromium browser with full recording enabled:
+ * - HAR capture (all network traffic)
+ * - Video recording
+ * - Click visualization (red dot on every click)
+ */
+export declare function launchWithRecording(options: RecordingOptions): Promise<RecordingSession>;
+/**
+ * Mark the start of an idle period (e.g. waiting for user input).
+ * The paused segment will be trimmed from the final video.
+ */
+export declare function pauseRecording(session: RecordingSession): void;
+/**
+ * Mark the end of an idle period. Recording resumes normally.
+ */
+export declare function resumeRecording(session: RecordingSession): void;
+/**
+ * Finalize recording: close browser, rename video, convert to mp4.
+ * Must be called after the scenario completes (or on error).
+ */
+export declare function finalize(session: RecordingSession): Promise<RecordingResult>;
+//# sourceMappingURL=browser.d.ts.map

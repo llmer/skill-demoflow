@@ -9,6 +9,54 @@ allowed-tools: Bash, Read, Write, Glob, Grep, Agent
 
 You generate and run Playwright browser automation scripts from natural language scenario descriptions, with full recording (HAR + video + click visualization).
 
+## Preamble (run first)
+
+```bash
+# Check skill lib
+if [ -f ".claude/skills/demo/lib/index.js" ]; then
+  echo "SKILL_LIB: ready"
+else
+  echo "SKILL_LIB: missing"
+fi
+
+# Check Playwright
+if npx playwright --version >/dev/null 2>&1; then
+  echo "PLAYWRIGHT: $(npx playwright --version 2>&1)"
+else
+  echo "PLAYWRIGHT: missing"
+fi
+
+# Check Chromium
+if [ -d "$(npx playwright install --dry-run chromium 2>/dev/null | head -1)" ] || npx playwright install --dry-run chromium 2>&1 | grep -q "is already installed"; then
+  echo "CHROMIUM: ready"
+else
+  echo "CHROMIUM: missing"
+fi
+
+# Check ffmpeg (required for video)
+if command -v ffmpeg >/dev/null 2>&1; then
+  echo "FFMPEG: $(ffmpeg -version 2>&1 | head -1)"
+else
+  echo "FFMPEG: missing (video conversion will fail)"
+fi
+
+# Check for .demoflow
+if [ -d ".demoflow" ]; then
+  echo "DEMOFLOW: initialized"
+  ls .demoflow/scenarios/ 2>/dev/null | head -10
+else
+  echo "DEMOFLOW: not initialized (run /demo init)"
+fi
+```
+
+If `SKILL_LIB` is `missing`: the skill was not installed correctly. Tell the user to run `npx skills add llmer/skill-demoflow`.
+
+If `PLAYWRIGHT` is `missing`: run `npm install --save-dev @playwright/test`.
+
+If `CHROMIUM` is `missing`: run `npx playwright install chromium`.
+
+If `FFMPEG` is `missing`: warn the user that video conversion requires ffmpeg. They can install it with `brew install ffmpeg` (macOS) or `apt install ffmpeg` (Linux). Recording will still work but MP4 output will be skipped.
+
 ## Subcommands
 
 Check `$ARGUMENTS` first:
@@ -167,6 +215,141 @@ Tell the user:
 - Any errors that occurred
 - Summary of what was captured
 
+---
+
+## Recording Library Reference
+
+All functions are exported from the skill lib at `.claude/skills/demo/lib/index.js`.
+
+### `launchWithRecording(options) → RecordingSession`
+
+Launch a Chromium browser with full recording: HAR capture, video, and click visualization.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `outputDir` | `string` | *required* | Output directory for HAR, video, screenshots. Created if missing. |
+| `viewport` | `{ width, height }` | `1280x720` | Browser viewport size. Also sets video resolution. |
+| `headed` | `boolean` | `true` | Show the browser window. Set `false` for CI. |
+| `slowMo` | `number` | `100` | Delay between actions in ms. Higher = more readable video. |
+| `ignoreHTTPSErrors` | `boolean` | `true` | Bypass HTTPS certificate errors (useful for local dev). |
+| `desktopFrame` | `boolean \| DesktopFrameOptions` | `true` | Wrap video in desktop chrome. See [Desktop Frame](#desktop-frame). |
+
+Returns a `RecordingSession` with `browser`, `context`, `page`, and `outputDir`.
+
+### `finalize(session) → RecordingResult`
+
+Close the browser, convert video to MP4, apply desktop frame compositing. **Must be called in a finally block** — skipping this loses the HAR and video.
+
+Returns:
+| Field | Type | Description |
+|-------|------|-------------|
+| `harPath` | `string` | Path to the HAR file (always present) |
+| `mp4Path` | `string \| null` | Path to MP4 video (`null` if ffmpeg missing) |
+| `webmPath` | `string \| null` | Path to raw WebM video |
+
+Pipeline: close browser → rename WebM → trim pauses (if any) → convert to MP4 → composite with desktop frame → clean up temps.
+
+### `requestInput(outputDir, message, options?) → string`
+
+Pause the script and wait for external input (OTP codes, 2FA tokens, manual confirmation).
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `session` | `RecordingSession` | — | If provided, video is auto-paused while waiting and idle time is trimmed from final video. |
+| `timeoutMs` | `number` | `300000` | Max wait time in ms before throwing. |
+
+Writes `.waiting-for-input` signal file. Polls for `.input-value` response file. Auto-cleans both files after input is received.
+
+### `pauseRecording(session)` / `resumeRecording(session)`
+
+Manually mark idle periods. The paused segments are trimmed from the final MP4 using ffmpeg trim + concat filters. Use when you have a known wait that isn't handled by `requestInput`.
+
+```typescript
+pauseRecording(session)
+await someSlowOperation()
+resumeRecording(session)
+```
+
+### `provideInput(outputDir, value)`
+
+Write input from the skill/CLI side. Called by the skill runner after getting the value from the user.
+
+### `checkWaiting(outputDir) → string | null`
+
+Check if a script is waiting for input. Returns the prompt message or `null`.
+
+---
+
+## Desktop Frame
+
+Videos are composited onto a desktop OS frame (titlebar + window chrome + wallpaper background) for polished output.
+
+### Options
+
+Pass to `launchWithRecording({ desktopFrame: ... })`:
+
+| Value | Behavior |
+|-------|----------|
+| `true` (default) | macOS Sonoma style frame |
+| `false` | No frame — raw viewport video |
+| `{ style: 'macos' }` | macOS Sonoma with traffic lights and tab |
+| `{ style: 'windows-xp' }` | Windows XP with IE chrome, taskbar, and Start button |
+| `{ title: 'My App' }` | Override the tab/titlebar text (default: page title at finalize) |
+| `{ resolution: { width: 1920, height: 1080 } }` | Desktop resolution (default: 1920x1080) |
+
+### Frame anatomy
+
+**macOS (default):**
+- Dark gradient wallpaper (purple/blue tones)
+- Window with rounded corners (top and bottom), drop shadow
+- Titlebar: traffic lights (red/yellow/green) + centered tab with page title
+- Content area: your recorded video
+
+**Windows XP:**
+- Blue sky + green hills wallpaper
+- Blue gradient titlebar with IE icon + minimize/maximize/close
+- Address bar with URL + Go button
+- XP taskbar at bottom with green Start button + clock
+
+### How it works
+
+1. Browser records WebM video at viewport size
+2. `finalize()` converts WebM → MP4 (with pause trimming if needed)
+3. Playwright renders the frame HTML to a PNG at the desktop resolution
+4. ffmpeg overlays the MP4 onto the frame PNG at the calculated content position
+5. Framed MP4 replaces the original
+
+The frame is a static PNG — it doesn't change during the video. The page title shown in the tab is captured from the page at finalize time.
+
+---
+
+## Click Visualization
+
+Every page automatically gets a click visualization script injected via `addInitScript`. When the user clicks anywhere:
+
+1. A red circle (30px, semi-transparent) appears at the click point
+2. The circle expands to 2.5x and fades out over 900ms
+3. Removed from DOM after 1200ms
+
+This is captured in the video recording — no post-processing needed. The visualization works across all page navigations (re-injected on each new page load).
+
+---
+
+## Output Files
+
+After a successful run, `output/{scenario-name}/` contains:
+
+| File | Description |
+|------|-------------|
+| `recording.har` | Full network capture (importable in Chrome DevTools Network tab) |
+| `recording.mp4` | Polished video with click indicators + desktop frame |
+| `recording.webm` | Raw video from Playwright (pre-conversion) |
+| `error.png` | Screenshot at point of failure (only on error) |
+
+If desktop frame is disabled, `recording.mp4` is the raw viewport video without chrome.
+
+---
+
 ## Target Resolution
 
 Targets are Markdown files in `.demoflow/targets/` that describe the runtime environment. They contain:
@@ -198,6 +381,36 @@ When you see these in the scenario, handle them in the generated script:
 - Handle dialogs/modals that might appear unexpectedly
 - Add retry logic for flaky operations
 - Always wrap the main flow in try/catch/finally with `finalize()` in finally
+- Never skip `finalize()` — even on error, it saves the HAR and whatever video was captured
+- Prefer `page.getByRole()` and `page.getByText()` over CSS selectors
+- Use `page.waitForURL()` after navigation actions to ensure the page has loaded
+- Add `page.waitForLoadState('networkidle')` before screenshots or assertions on dynamic pages
+
+---
+
+## Tips
+
+1. **Always call `finalize()` in finally.** If you skip it, the HAR is lost and the browser process leaks.
+2. **Pass `{ session }` to `requestInput()`.** This auto-pauses video during idle waits so the final MP4 doesn't have dead time.
+3. **Use `slowMo` for video quality.** 100ms is a good default. Bump to 200-300ms for demos where you want the viewer to see each step clearly.
+4. **Use `pauseRecording` / `resumeRecording` around long waits.** Any operation where the screen is static for >2s should be trimmed.
+5. **Set viewport to match your target audience.** 1280x720 is a safe default. Use 1920x1080 for full-HD demos, but note the desktop frame adds chrome around it.
+6. **The desktop frame title is captured at finalize.** Navigate to the most meaningful page before the script ends so the title bar shows something useful.
+7. **Use `desktopFrame: { style: 'windows-xp' }` for fun.** It generates a full Windows XP Internet Explorer chrome with taskbar. Great for retro-themed demos.
+8. **Check for ffmpeg before running.** Without it, you get HAR + WebM but no MP4 and no desktop frame compositing.
+
+---
+
+## Completion Status
+
+When the run finishes, report status:
+
+- **DONE** — Scenario completed. HAR + video saved. Report file paths.
+- **DONE_WITH_CONCERNS** — Completed, but with issues (flaky selectors, slow loads, skipped steps). List each concern.
+- **BLOCKED** — Cannot proceed. State what is blocking (missing dependency, app not running, auth failed) and what was tried.
+- **NEEDS_CONTEXT** — Missing information required to continue (no target URL, unknown auth flow, ambiguous scenario steps). State exactly what you need.
+
+---
 
 ## Example Invocations
 

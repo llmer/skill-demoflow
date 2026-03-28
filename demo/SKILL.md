@@ -1,7 +1,7 @@
 ---
 name: demo
 description: Run browser automation scenarios with HAR + video recording from natural language flow descriptions. Use when the user wants to generate demo videos, capture HAR files, or run acceptance tests through the browser.
-argument-hint: [scenario-name or inline description] [--target name]
+argument-hint: "[scenario-name or inline description] [--target name]"
 allowed-tools: Bash, Read, Write, Glob, Grep, Agent
 ---
 

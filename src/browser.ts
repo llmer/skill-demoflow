@@ -1,7 +1,8 @@
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test'
-import { mkdirSync, readdirSync, renameSync } from 'fs'
+import { mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { CLICK_VIS_SCRIPT, convertToMp4, convertToMp4WithTrim } from './recorder.js'
+import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim } from './recorder.js'
+import { renderFrame, type DesktopFrameOptions } from './frame.js'
 
 export interface RecordingOptions {
   /** Output directory for HAR, video, screenshots. Created if missing. */
@@ -14,6 +15,8 @@ export interface RecordingOptions {
   slowMo?: number
   /** Ignore HTTPS errors (default true). */
   ignoreHTTPSErrors?: boolean
+  /** Wrap video in a desktop frame. Default: true (macOS style). Pass false to disable. */
+  desktopFrame?: boolean | DesktopFrameOptions
 }
 
 export interface PauseSegment {
@@ -34,6 +37,10 @@ export interface RecordingSession {
   _pauses: PauseSegment[]
   /** @internal timestamp of current pause start, or null */
   _pauseStart: number | null
+  /** @internal resolved desktop frame options, or null if disabled */
+  _frameOptions: DesktopFrameOptions | null
+  /** @internal viewport used for recording */
+  _viewport: { width: number; height: number }
 }
 
 export interface RecordingResult {
@@ -57,7 +64,13 @@ export async function launchWithRecording(
     headed = true,
     slowMo = 100,
     ignoreHTTPSErrors = true,
+    desktopFrame = true,
   } = options
+
+  const frameOptions: DesktopFrameOptions | null =
+    desktopFrame === false ? null :
+    desktopFrame === true ? {} :
+    desktopFrame
 
   mkdirSync(outputDir, { recursive: true })
 
@@ -82,7 +95,7 @@ export async function launchWithRecording(
   const page = await context.newPage()
   await page.addInitScript(CLICK_VIS_SCRIPT)
 
-  return { browser, context, page, outputDir, _startTime: Date.now(), _pauses: [], _pauseStart: null }
+  return { browser, context, page, outputDir, _startTime: Date.now(), _pauses: [], _pauseStart: null, _frameOptions: frameOptions, _viewport: viewport }
 }
 
 /**
@@ -115,6 +128,18 @@ export function resumeRecording(session: RecordingSession): void {
 export async function finalize(session: RecordingSession): Promise<RecordingResult> {
   const { page, context, browser, outputDir } = session
 
+  // Capture page info before closing (needed for frame address bar)
+  let pageUrl: string | undefined
+  let pageTitle: string | undefined
+  if (session._frameOptions) {
+    try {
+      pageUrl = page.url()
+      pageTitle = await page.title()
+    } catch {
+      // Page may already be closed
+    }
+  }
+
   await page.close()
   await context.close()
   await browser.close()
@@ -138,6 +163,27 @@ export async function finalize(session: RecordingSession): Promise<RecordingResu
       }
     } catch {
       mp4Path = null
+    }
+
+    // Desktop frame compositing
+    if (mp4Path && session._frameOptions) {
+      try {
+        const frameOpts: DesktopFrameOptions = {
+          ...session._frameOptions,
+          url: session._frameOptions.url ?? pageUrl,
+          title: session._frameOptions.title ?? pageTitle,
+        }
+        const frame = await renderFrame(outputDir, session._viewport, frameOpts)
+        const framedPath = join(outputDir, 'recording-framed.mp4')
+        compositeWithFrame(mp4Path, frame.pngPath, framedPath, frame.contentX, frame.contentY)
+
+        // Replace original with framed version
+        unlinkSync(mp4Path)
+        renameSync(framedPath, mp4Path)
+        unlinkSync(frame.pngPath)
+      } catch {
+        // Frame compositing failed — keep unframed MP4
+      }
     }
   }
 

@@ -42,6 +42,24 @@ export function convertToMp4(webmPath: string, mp4Path: string): void {
 }
 
 /**
+ * Composite a recorded MP4 onto a desktop frame PNG using ffmpeg overlay.
+ */
+export function compositeWithFrame(
+  mp4Path: string,
+  framePngPath: string,
+  outputPath: string,
+  contentX: number,
+  contentY: number,
+): void {
+  execSync(
+    `ffmpeg -loop 1 -i "${framePngPath}" -i "${mp4Path}" ` +
+    `-filter_complex "[0:v][1:v]overlay=x=${contentX}:y=${contentY}:shortest=1[out]" ` +
+    `-map "[out]" -c:v libx264 -preset fast -y "${outputPath}"`,
+    { stdio: 'pipe' },
+  )
+}
+
+/**
  * Convert webm to mp4, trimming out pause segments (e.g. idle time waiting for user input).
  * Uses ffmpeg trim + concat filters to splice out the paused ranges.
  */

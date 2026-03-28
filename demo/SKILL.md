@@ -126,6 +126,7 @@ async function main() {
     outputDir: 'output/scenario-name',
     headed: true,
     slowMo: 100,
+    desktopFrame: true, // wraps video in macOS desktop + browser chrome
   })
   const { page } = session
 

@@ -26,7 +26,7 @@ When `$ARGUMENTS` is `init`, you explore the project and bootstrap `.demoflow/`.
 ### What to do
 
 1. **Ensure runtime dependencies** are installed:
-   - Check if `skill-demoflow` is in `package.json`. If not: `npm install skill-demoflow`
+   - Check if `skill-demoflow` is in `package.json`. If not: `npm install --save-dev ./.claude/skills/demo/lib`
    - Check if Playwright Chromium is available. If not: `npx playwright install chromium`
 
 2. **Explore the codebase** using the Explore agent:

@@ -57,6 +57,24 @@ You can also set up manually — see [Manual Setup](#manual-setup) below.
 /demo "log in and create a new project"
 ```
 
+## Natural Language Usage
+
+You don't need to write config files by hand. Just describe what you want:
+
+```bash
+# Scaffold everything — Claude explores your project and generates context, targets, and scenarios
+/demo init
+
+# Add a target by describing your environment
+/demo "add a local dev target at localhost:3000 with Mailpit on port 8025 for OTP"
+
+# Add a scenario by describing the user journey
+/demo "add a scenario for user signup and first project creation"
+
+# Run a demo from an inline description (no scenario file needed)
+/demo "log in and navigate to settings"
+```
+
 ## How it works
 
 ```

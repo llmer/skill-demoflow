@@ -68,7 +68,12 @@ When `$ARGUMENTS` is `init`, you explore the project and bootstrap `.demoflow/`.
        └── (suggested scenarios)
    ```
 
-7. **Report what was created** and suggest the user review context.md for accuracy.
+7. **Ensure `scripts/` is excluded from the build**:
+   - Read `tsconfig.json` and check if `scripts` is in the `exclude` array
+   - If not, add `"scripts"` to the `exclude` array — Playwright imports are Node-only and will break framework builds (Next.js, Remix, etc.) if included in the compilation scope
+   - If there's no `exclude` array, create one with `["scripts"]`
+
+8. **Report what was created** and suggest the user review context.md for accuracy.
 
 ---
 

@@ -3,7 +3,7 @@ import { createReadStream, existsSync, readdirSync, statSync } from 'fs'
 import { join, extname } from 'path'
 import { readManifest } from './manifest.js'
 import { render } from './browser.js'
-import { generateFrameHtml } from './frame.js'
+import { generateFrameHtml, type FrameComponents } from './frame.js'
 
 // ── Server ───────────────────────────────────────────────────────────────────
 
@@ -91,6 +91,22 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, outputDi
     const wallpaper = url.searchParams.get('wallpaper') ?? ''
     const videoUrl = `/files/${name}/recording.webm`
 
+    const components: FrameComponents = {}
+    if (url.searchParams.get('hideAddressBar') === 'true') components.hideAddressBar = true
+    if (url.searchParams.get('hideStatusBar') === 'true') components.hideStatusBar = true
+    if (url.searchParams.get('hideTaskbar') === 'true') components.hideTaskbar = true
+    if (url.searchParams.get('hideTrafficLights') === 'true') components.hideTrafficLights = true
+    const titleSuffix = url.searchParams.get('titleSuffix')
+    if (titleSuffix !== null) components.titleSuffix = titleSuffix
+    const statusText = url.searchParams.get('statusText')
+    if (statusText) components.statusText = statusText
+    const statusRightText = url.searchParams.get('statusRightText')
+    if (statusRightText) components.statusRightText = statusRightText
+    const clockText = url.searchParams.get('clockText')
+    if (clockText) components.clockText = clockText
+    const startButtonText = url.searchParams.get('startButtonText')
+    if (startButtonText) components.startButtonText = startButtonText
+
     const html = previewHtml(videoUrl, viewport, {
       style,
       title,
@@ -98,6 +114,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, outputDi
       resolution: { width: resW, height: resH },
       windowOffsetY: offsetY,
       wallpaperColor: wallpaper || undefined,
+      components,
     })
     res.writeHead(200, { 'Content-Type': 'text/html' })
     res.end(html)
@@ -196,6 +213,7 @@ interface PreviewOptions {
   resolution: { width: number; height: number }
   windowOffsetY?: number
   wallpaperColor?: string
+  components?: FrameComponents
 }
 
 function previewHtml(
@@ -219,6 +237,7 @@ function previewHtml(
     resolution: options.resolution,
     windowOffsetY: options.windowOffsetY,
     wallpaperColor: options.wallpaperColor,
+    components: options.components,
   })
 
   // Inject video element into the content area
@@ -431,6 +450,19 @@ function studioHtml(): string {
 
   .controls-spacer { flex: 1; }
 
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #999;
+    cursor: pointer;
+  }
+
+  .toggle-row input[type="checkbox"] {
+    accent-color: #2563eb;
+  }
+
   .render-btn {
     width: 100%;
     background: #2563eb;
@@ -528,6 +560,21 @@ function studioHtml(): string {
         <input type="text" class="text-input" id="url-input" placeholder="https://example.com">
       </div>
 
+      <div class="control-group" id="comp-visibility-group">
+        <div class="control-label">Components</div>
+        <label class="toggle-row" id="tl-toggle"><input type="checkbox" id="tl-check" checked> Traffic Lights</label>
+        <label class="toggle-row" id="ab-toggle"><input type="checkbox" id="ab-check" checked> Address Bar</label>
+        <label class="toggle-row" id="sb-toggle"><input type="checkbox" id="sb-check" checked> Status Bar</label>
+        <label class="toggle-row" id="tb-toggle"><input type="checkbox" id="tb-check" checked> Taskbar</label>
+      </div>
+
+      <div class="control-group" id="comp-text-group">
+        <div class="control-label">Component Text</div>
+        <input type="text" class="text-input" id="title-suffix-input" placeholder=" - Internet Explorer">
+        <input type="text" class="text-input" id="status-text-input" placeholder="Done">
+        <input type="text" class="text-input" id="clock-text-input" placeholder="3:42 PM">
+      </div>
+
       <div class="control-group">
         <div class="control-label">Desktop Resolution</div>
         <select class="select-input" id="resolution-select">
@@ -582,6 +629,21 @@ const wallpaperGroup = $('wallpaper-group');
 const renderBtn = $('render-btn');
 const statusEl = $('status');
 
+// Component controls
+const compVisGroup = $('comp-visibility-group');
+const compTextGroup = $('comp-text-group');
+const tlToggle = $('tl-toggle');
+const abToggle = $('ab-toggle');
+const sbToggle = $('sb-toggle');
+const tbToggle = $('tb-toggle');
+const tlCheck = $('tl-check');
+const abCheck = $('ab-check');
+const sbCheck = $('sb-check');
+const tbCheck = $('tb-check');
+const titleSuffixInput = $('title-suffix-input');
+const statusTextInput = $('status-text-input');
+const clockTextInput = $('clock-text-input');
+
 let current = null;
 let manifest = null;
 
@@ -614,14 +676,25 @@ async function selectRecording(name) {
     urlInput.value = manifest.render.url || manifest.capture?.pageUrl || '';
     const r = manifest.render.resolution;
     if (r) resSelect.value = r.width + 'x' + r.height;
+    // Restore component state
+    const comp = manifest.render.components || {};
+    tlCheck.checked = !comp.hideTrafficLights;
+    abCheck.checked = !comp.hideAddressBar;
+    sbCheck.checked = !comp.hideStatusBar;
+    tbCheck.checked = !comp.hideTaskbar;
+    titleSuffixInput.value = comp.titleSuffix ?? '';
+    statusTextInput.value = comp.statusText ?? '';
+    clockTextInput.value = comp.clockText ?? '';
   } else if (manifest?.capture) {
     setStyle('macos');
     titleInput.value = manifest.capture.pageTitle || '';
     urlInput.value = manifest.capture.pageUrl || '';
+    resetComponents();
   } else {
     setStyle('macos');
     titleInput.value = '';
     urlInput.value = '';
+    resetComponents();
   }
 
   emptyState.style.display = 'none';
@@ -629,21 +702,61 @@ async function selectRecording(name) {
   updatePreview();
 }
 
+function resetComponents() {
+  tlCheck.checked = true;
+  abCheck.checked = true;
+  sbCheck.checked = true;
+  tbCheck.checked = true;
+  titleSuffixInput.value = '';
+  statusTextInput.value = '';
+  clockTextInput.value = '';
+}
+
 function setStyle(value) {
   const radio = document.querySelector('input[name="style"][value="' + value + '"]');
   if (radio) radio.checked = true;
-  toggleUrlGroup();
+  toggleStyleControls();
 }
 
 function getStyle() {
   return document.querySelector('input[name="style"]:checked')?.value || 'macos';
 }
 
-function toggleUrlGroup() {
+function toggleStyleControls() {
   const s = getStyle();
-  urlGroup.style.display = (s === 'windows-xp' || s === 'windows-98') ? '' : 'none';
-  offsetGroup.style.display = s === 'none' ? 'none' : '';
-  wallpaperGroup.style.display = s === 'none' ? 'none' : '';
+  const isWin = s === 'windows-xp' || s === 'windows-98';
+  const isMac = s === 'macos';
+  const isNone = s === 'none';
+
+  urlGroup.style.display = isWin ? '' : 'none';
+  offsetGroup.style.display = isNone ? 'none' : '';
+  wallpaperGroup.style.display = isNone ? 'none' : '';
+
+  // Component visibility toggles
+  compVisGroup.style.display = isNone ? 'none' : '';
+  tlToggle.style.display = isMac ? '' : 'none';
+  abToggle.style.display = isWin ? '' : 'none';
+  sbToggle.style.display = isWin ? '' : 'none';
+  tbToggle.style.display = isWin ? '' : 'none';
+
+  // Component text overrides (XP/98 only)
+  compTextGroup.style.display = isWin ? '' : 'none';
+}
+
+function getComponents() {
+  const s = getStyle();
+  const comp = {};
+  if (s === 'macos') {
+    if (!tlCheck.checked) comp.hideTrafficLights = true;
+  } else if (s === 'windows-xp' || s === 'windows-98') {
+    if (!abCheck.checked) comp.hideAddressBar = true;
+    if (!sbCheck.checked) comp.hideStatusBar = true;
+    if (!tbCheck.checked) comp.hideTaskbar = true;
+    if (titleSuffixInput.value !== '') comp.titleSuffix = titleSuffixInput.value;
+    if (statusTextInput.value !== '') comp.statusText = statusTextInput.value;
+    if (clockTextInput.value !== '') comp.clockText = clockTextInput.value;
+  }
+  return comp;
 }
 
 function getOptions() {
@@ -655,6 +768,7 @@ function getOptions() {
     resolution: { width: w, height: h },
     offsetY: parseInt(offsetSlider.value, 10),
     wallpaper: wallpaperCustom.checked ? wallpaperColor.value : '',
+    components: getComponents(),
   };
 }
 
@@ -670,6 +784,16 @@ function updatePreview() {
     offsetY: String(opts.offsetY),
     wallpaper: opts.wallpaper,
   });
+  // Add component params (only non-defaults to keep URL clean)
+  const comp = opts.components;
+  if (comp.hideAddressBar) params.set('hideAddressBar', 'true');
+  if (comp.hideStatusBar) params.set('hideStatusBar', 'true');
+  if (comp.hideTaskbar) params.set('hideTaskbar', 'true');
+  if (comp.hideTrafficLights) params.set('hideTrafficLights', 'true');
+  if (comp.titleSuffix !== undefined) params.set('titleSuffix', comp.titleSuffix);
+  if (comp.statusText) params.set('statusText', comp.statusText);
+  if (comp.clockText) params.set('clockText', comp.clockText);
+
   previewFrame.src = '/preview/' + current + '?' + params;
 
   // Scale iframe to fit the preview pane using CSS transform
@@ -701,7 +825,7 @@ function scheduleUpdate() {
 
 recSelect.addEventListener('change', (e) => selectRecording(e.target.value));
 document.querySelectorAll('input[name="style"]').forEach(r => {
-  r.addEventListener('change', () => { toggleUrlGroup(); updatePreview(); });
+  r.addEventListener('change', () => { toggleStyleControls(); updatePreview(); });
 });
 titleInput.addEventListener('input', scheduleUpdate);
 urlInput.addEventListener('input', scheduleUpdate);
@@ -712,6 +836,10 @@ offsetSlider.addEventListener('input', () => {
 });
 wallpaperColor.addEventListener('input', () => { if (wallpaperCustom.checked) scheduleUpdate(); });
 wallpaperCustom.addEventListener('change', updatePreview);
+
+// Component control listeners
+[tlCheck, abCheck, sbCheck, tbCheck].forEach(cb => cb.addEventListener('change', updatePreview));
+[titleSuffixInput, statusTextInput, clockTextInput].forEach(inp => inp.addEventListener('input', scheduleUpdate));
 
 renderBtn.addEventListener('click', async () => {
   if (!current) return;
@@ -731,6 +859,7 @@ renderBtn.addEventListener('click', async () => {
         resolution: opts.resolution,
         windowOffsetY: opts.offsetY,
         wallpaperColor: opts.wallpaper || undefined,
+        components: opts.components,
       }),
     });
     const result = await res.json();
@@ -750,7 +879,7 @@ renderBtn.addEventListener('click', async () => {
 });
 
 window.addEventListener('resize', updatePreview);
-toggleUrlGroup();
+toggleStyleControls();
 loadRecordings();
 </script>
 </body>

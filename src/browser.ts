@@ -2,7 +2,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from '@playwri
 import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim } from './recorder.js'
-import { renderFrame, type DesktopFrameOptions } from './frame.js'
+import { renderFrame, type DesktopFrameOptions, type FrameComponents } from './frame.js'
 import { getGitState, getLibHash, hashFile, readManifest, writeManifest, type Manifest } from './manifest.js'
 
 export interface RecordingOptions {
@@ -73,6 +73,8 @@ export interface RenderOptions {
   windowOffsetY?: number
   /** Solid wallpaper color. Overrides the default gradient if set. */
   wallpaperColor?: string
+  /** Per-component visibility and text overrides. */
+  components?: FrameComponents
 }
 
 export interface RenderResult {
@@ -119,6 +121,7 @@ export async function render(outputDir: string, options: RenderOptions = {}): Pr
         resolution: options.resolution,
         windowOffsetY: options.windowOffsetY,
         wallpaperColor: options.wallpaperColor,
+        components: options.components,
       }
       const frame = await renderFrame(outputDir, viewport, frameOpts)
       const framedPath = join(outputDir, 'recording-framed.mp4')
@@ -143,6 +146,9 @@ function updateRenderManifest(outputDir: string, manifest: Manifest | null, opti
     title: options.title,
     url: options.url,
     resolution: options.resolution ?? { width: 1920, height: 1080 },
+    windowOffsetY: options.windowOffsetY,
+    wallpaperColor: options.wallpaperColor,
+    components: options.components,
     timestamp: new Date().toISOString(),
   }
   writeManifest(outputDir, manifest)

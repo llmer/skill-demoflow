@@ -1,4 +1,5 @@
 import type { PauseSegment } from './browser.js';
+import type { FrameComponents } from './frame.js';
 export interface CaptureInfo {
     commitHash: string;
     dirty: boolean;
@@ -22,6 +23,9 @@ export interface RenderInfo {
         width: number;
         height: number;
     };
+    windowOffsetY?: number;
+    wallpaperColor?: string;
+    components?: FrameComponents;
     timestamp: string;
 }
 export interface Manifest {

@@ -4,6 +4,7 @@ import { execSync } from 'child_process'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import type { PauseSegment } from './browser.js'
+import type { FrameComponents } from './frame.js'
 
 export interface CaptureInfo {
   commitHash: string
@@ -23,6 +24,9 @@ export interface RenderInfo {
   title?: string
   url?: string
   resolution: { width: number; height: number }
+  windowOffsetY?: number
+  wallpaperColor?: string
+  components?: FrameComponents
   timestamp: string
 }
 

@@ -28,6 +28,7 @@ function macosFrameHtml(viewport, resolution, options) {
     const layout = computeLayout(viewport, resolution, MACOS_TITLE_BAR_HEIGHT, MACOS_BOTTOM_EDGE, options.windowOffsetY);
     const title = options.title ?? 'Untitled';
     const wallpaper = options.wallpaperColor ? options.wallpaperColor : MACOS_DEFAULT_WALLPAPER;
+    const c = options.components;
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -133,11 +134,11 @@ function macosFrameHtml(viewport, resolution, options) {
 <body>
   <div class="window">
     <div class="titlebar">
-      <div class="traffic-lights">
+      ${c?.hideTrafficLights ? '' : `<div class="traffic-lights">
         <div class="traffic-light tl-close"></div>
         <div class="traffic-light tl-minimize"></div>
         <div class="traffic-light tl-maximize"></div>
-      </div>
+      </div>`}
       <div class="tab-area">
         <div class="tab">${escapeHtml(title)}</div>
       </div>
@@ -154,15 +155,16 @@ function macosFrameHtml(viewport, resolution, options) {
 const XP_TITLE_BAR_HEIGHT = 30;
 const XP_ADDRESS_BAR_HEIGHT = 28;
 const XP_STATUS_BAR_HEIGHT = 22;
-const XP_CHROME_HEIGHT = XP_TITLE_BAR_HEIGHT + XP_ADDRESS_BAR_HEIGHT;
-const XP_BOTTOM_EDGE = XP_STATUS_BAR_HEIGHT;
 const XP_DEFAULT_WALLPAPER = `linear-gradient(180deg, #3a7bd5 0%, #6db3f2 15%, #87ceeb 30%, #b0d4f1 42%, #dce9c5 52%, #7cba5c 58%, #5a9a3c 68%, #4a8a2c 80%, #3d7a24 100%)`;
 const XP_TASKBAR_HEIGHT = 36;
 function xpFrameHtml(viewport, resolution, options) {
-    const layout = computeLayout(viewport, resolution, XP_CHROME_HEIGHT, XP_BOTTOM_EDGE, options.windowOffsetY);
+    const c = options.components;
+    const { chromeHeight, bottomEdge } = styleParams('windows-xp', c);
+    const layout = computeLayout(viewport, resolution, chromeHeight, bottomEdge, options.windowOffsetY);
     const url = options.url ?? 'https://example.com';
     const title = options.title ?? 'Untitled';
     const wallpaper = options.wallpaperColor ?? XP_DEFAULT_WALLPAPER;
+    const titleSuffix = c?.titleSuffix ?? ' - Internet Explorer';
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -262,27 +264,27 @@ function xpFrameHtml(viewport, resolution, options) {
 <body>
   <div class="window">
     <div class="title-bar">
-      <div class="title-bar-text">${escapeHtml(title)} - Internet Explorer</div>
+      <div class="title-bar-text">${escapeHtml(title)}${escapeHtml(titleSuffix)}</div>
       <div class="title-bar-controls">
         <button aria-label="Minimize"></button>
         <button aria-label="Maximize"></button>
         <button aria-label="Close"></button>
       </div>
     </div>
-    <div class="address-bar">
+    ${c?.hideAddressBar ? '' : `<div class="address-bar">
       <label>Address</label>
       <input type="text" value="${escapeHtml(url)}" readonly>
       <button>Go</button>
-    </div>
+    </div>`}
     <div class="window-body" style="margin:0;padding:0;">
       <div class="content-area"></div>
     </div>
-    <div class="status-bar">
-      <p class="status-bar-field">Done</p>
-      <p class="status-bar-field">Internet</p>
-    </div>
+    ${c?.hideStatusBar ? '' : `<div class="status-bar">
+      <p class="status-bar-field">${escapeHtml(c?.statusText ?? 'Done')}</p>
+      <p class="status-bar-field">${escapeHtml(c?.statusRightText ?? 'Internet')}</p>
+    </div>`}
   </div>
-  <div class="taskbar">
+  ${c?.hideTaskbar ? '' : `<div class="taskbar">
     <div class="start-btn">
       <div class="start-flag">
         <div class="flag-r"></div>
@@ -290,10 +292,10 @@ function xpFrameHtml(viewport, resolution, options) {
         <div class="flag-b"></div>
         <div class="flag-y"></div>
       </div>
-      start
+      ${escapeHtml(c?.startButtonText ?? 'start')}
     </div>
-    <div class="taskbar-clock">3:42 PM</div>
-  </div>
+    <div class="taskbar-clock">${escapeHtml(c?.clockText ?? '3:42 PM')}</div>
+  </div>`}
 </body>
 </html>`;
 }
@@ -303,13 +305,14 @@ function xpFrameHtml(viewport, resolution, options) {
 const W98_TITLE_BAR_HEIGHT = 24;
 const W98_ADDRESS_BAR_HEIGHT = 26;
 const W98_STATUS_BAR_HEIGHT = 20;
-const W98_CHROME_HEIGHT = W98_TITLE_BAR_HEIGHT + W98_ADDRESS_BAR_HEIGHT;
-const W98_BOTTOM_EDGE = W98_STATUS_BAR_HEIGHT;
 function w98FrameHtml(viewport, resolution, options) {
-    const layout = computeLayout(viewport, resolution, W98_CHROME_HEIGHT, W98_BOTTOM_EDGE, options.windowOffsetY);
+    const c = options.components;
+    const { chromeHeight, bottomEdge } = styleParams('windows-98', c);
+    const layout = computeLayout(viewport, resolution, chromeHeight, bottomEdge, options.windowOffsetY);
     const url = options.url ?? 'https://example.com';
     const title = options.title ?? 'Untitled';
     const wallpaper = options.wallpaperColor ?? '#008080';
+    const titleSuffix = c?.titleSuffix ?? ' - Internet Explorer';
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -388,42 +391,48 @@ function w98FrameHtml(viewport, resolution, options) {
 <body>
   <div class="window">
     <div class="title-bar">
-      <div class="title-bar-text">${escapeHtml(title)} - Internet Explorer</div>
+      <div class="title-bar-text">${escapeHtml(title)}${escapeHtml(titleSuffix)}</div>
       <div class="title-bar-controls">
         <button aria-label="Minimize"></button>
         <button aria-label="Maximize"></button>
         <button aria-label="Close"></button>
       </div>
     </div>
-    <div class="address-bar">
+    ${c?.hideAddressBar ? '' : `<div class="address-bar">
       <label>Address</label>
       <input type="text" value="${escapeHtml(url)}" readonly>
       <button>Go</button>
-    </div>
+    </div>`}
     <div class="window-body" style="margin:0;padding:0;">
       <div class="content-area"></div>
     </div>
-    <div class="status-bar">
-      <p class="status-bar-field">Done</p>
-      <p class="status-bar-field">Internet</p>
-    </div>
+    ${c?.hideStatusBar ? '' : `<div class="status-bar">
+      <p class="status-bar-field">${escapeHtml(c?.statusText ?? 'Done')}</p>
+      <p class="status-bar-field">${escapeHtml(c?.statusRightText ?? 'Internet')}</p>
+    </div>`}
   </div>
-  <div class="taskbar-98">
-    <button>Start</button>
-    <div class="taskbar-clock-98">3:42 PM</div>
-  </div>
+  ${c?.hideTaskbar ? '' : `<div class="taskbar-98">
+    <button>${escapeHtml(c?.startButtonText ?? 'Start')}</button>
+    <div class="taskbar-clock-98">${escapeHtml(c?.clockText ?? '3:42 PM')}</div>
+  </div>`}
 </body>
 </html>`;
 }
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
-function styleParams(style) {
+function styleParams(style, components) {
     switch (style) {
         case 'windows-xp':
-            return { chromeHeight: XP_CHROME_HEIGHT, bottomEdge: XP_BOTTOM_EDGE };
+            return {
+                chromeHeight: XP_TITLE_BAR_HEIGHT + (components?.hideAddressBar ? 0 : XP_ADDRESS_BAR_HEIGHT),
+                bottomEdge: components?.hideStatusBar ? 0 : XP_STATUS_BAR_HEIGHT,
+            };
         case 'windows-98':
-            return { chromeHeight: W98_CHROME_HEIGHT, bottomEdge: W98_BOTTOM_EDGE };
+            return {
+                chromeHeight: W98_TITLE_BAR_HEIGHT + (components?.hideAddressBar ? 0 : W98_ADDRESS_BAR_HEIGHT),
+                bottomEdge: components?.hideStatusBar ? 0 : W98_STATUS_BAR_HEIGHT,
+            };
         default:
             return { chromeHeight: MACOS_TITLE_BAR_HEIGHT, bottomEdge: MACOS_BOTTOM_EDGE };
     }
@@ -452,7 +461,7 @@ export async function renderFrame(outputDir, viewport, options = {}) {
     await page.screenshot({ path: pngPath, type: 'png' });
     await browser.close();
     const style = options.style ?? 'macos';
-    const { chromeHeight, bottomEdge } = styleParams(style);
+    const { chromeHeight, bottomEdge } = styleParams(style, options.components);
     const layout = computeLayout(viewport, resolution, chromeHeight, bottomEdge, options.windowOffsetY);
     return {
         pngPath,

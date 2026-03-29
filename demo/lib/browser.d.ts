@@ -1,5 +1,5 @@
 import { type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { type DesktopFrameOptions } from './frame.js';
+import { type DesktopFrameOptions, type FrameComponents } from './frame.js';
 export interface RecordingOptions {
     /** Output directory for HAR, video, screenshots. Created if missing. */
     outputDir: string;
@@ -71,6 +71,8 @@ export interface RenderOptions {
     windowOffsetY?: number;
     /** Solid wallpaper color. Overrides the default gradient if set. */
     wallpaperColor?: string;
+    /** Per-component visibility and text overrides. */
+    components?: FrameComponents;
 }
 export interface RenderResult {
     mp4Path: string | null;

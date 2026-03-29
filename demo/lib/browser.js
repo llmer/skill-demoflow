@@ -42,6 +42,7 @@ export async function render(outputDir, options = {}) {
                 resolution: options.resolution,
                 windowOffsetY: options.windowOffsetY,
                 wallpaperColor: options.wallpaperColor,
+                components: options.components,
             };
             const frame = await renderFrame(outputDir, viewport, frameOpts);
             const framedPath = join(outputDir, 'recording-framed.mp4');
@@ -65,6 +66,9 @@ function updateRenderManifest(outputDir, manifest, options) {
         title: options.title,
         url: options.url,
         resolution: options.resolution ?? { width: 1920, height: 1080 },
+        windowOffsetY: options.windowOffsetY,
+        wallpaperColor: options.wallpaperColor,
+        components: options.components,
         timestamp: new Date().toISOString(),
     };
     writeManifest(outputDir, manifest);

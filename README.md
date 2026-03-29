@@ -281,6 +281,55 @@ Then edit the files to match your app.
 - [Playwright](https://playwright.dev/) (`npx playwright install chromium`)
 - [ffmpeg](https://ffmpeg.org/) (for webm → mp4 conversion, optional)
 
+## Development
+
+### Setup
+
+```bash
+git clone https://github.com/llmer/skill-demoflow.git
+cd skill-demoflow
+npm install
+npm run build
+```
+
+### Dev workflow
+
+Start the watcher — it runs `tsc --watch` and auto-copies compiled output to `demo/lib/`:
+
+```bash
+npm run dev
+```
+
+### Testing in local repos
+
+To test changes against a repo that already has `.demoflow/` initialized, link it once:
+
+```bash
+npm run link ~/src/my-app
+```
+
+This replaces the copied `.agents/skills/demo/` in the target repo with a symlink back to this repo's `demo/` directory. After linking:
+
+- Edits to `src/*.ts` auto-compile to `demo/lib/` (via `npm run dev`) and are immediately visible
+- Edits to `demo/SKILL.md` are instant — no build step needed
+
+You can link multiple repos at once:
+
+```bash
+npm run link ~/src/app-one ~/src/app-two
+```
+
+> **Note:** Running `npx skills add` in a target repo overwrites the symlink with a copy. Re-run `npm run link` after any `skills add`.
+
+### Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run build` | One-shot compile + copy to `demo/lib/` |
+| `npm run dev` | Watch mode: `tsc --watch` + auto-copy to `demo/lib/` |
+| `npm run link <repo>` | Symlink a target repo to `demo/` for live testing |
+| `npm run studio` | Launch DemoFlow Studio at http://localhost:3274 |
+
 ## Examples
 
 See the [examples/](examples/) directory for a complete working setup.

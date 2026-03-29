@@ -18,7 +18,8 @@
   ],
   "scripts": {
     "build": "tsc && cp dist/*.js dist/*.d.ts demo/lib/",
-    "dev": "tsc --watch",
+    "dev": "node scripts/dev.mjs",
+    "link": "bash scripts/link.sh",
     "studio": "node dist/studio.js"
   },
   "peerDependencies": {

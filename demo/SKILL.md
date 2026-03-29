@@ -247,6 +247,31 @@ Tell the user:
 - Any errors that occurred
 - Summary of what was captured
 
+### Step 6: Offer adjustments
+
+After reporting results, ask the user if they'd like to adjust the video. Present these options:
+
+- **Change frame style** — re-render with `macos`, `windows-xp`, or `none` (raw viewport)
+- **Change title** — update the text shown in the frame's titlebar/tab
+- **Open Studio** — launch the DemoFlow Studio web UI at http://localhost:3274 for live preview and adjustments
+- **Keep as-is** — done
+
+If the user picks a re-render option, call `render()` on the existing capture (no re-recording needed):
+
+```typescript
+import { render } from '../.claude/skills/demo/lib/index.js'
+
+const result = await render('output/{scenario-name}', {
+  frameStyle: 'windows-xp',  // or 'macos', 'none'
+  title: 'Custom Title',     // optional
+})
+console.log('Updated video:', result.mp4Path)
+```
+
+If the user picks Studio, run: `node -e "import('./.claude/skills/demo/lib/studio.js').then(m => m.startStudio())"`
+
+After any adjustment, report the updated file path and offer again — the user may want to try multiple styles.
+
 ---
 
 ## Recording Library Reference

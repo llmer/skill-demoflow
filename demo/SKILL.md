@@ -167,7 +167,7 @@ Write a complete Playwright script to `scripts/demo-run.ts` that:
 
 - Imports from the skill lib (path relative to `scripts/`):
   ```typescript
-  import { launchWithRecording, finalize, requestInput, pauseRecording, resumeRecording } from '../.claude/skills/demo/lib/index.js'
+  import { launchWithRecording, finalize, requestInput, pauseRecording, resumeRecording, getLibHash } from '../.claude/skills/demo/lib/index.js'
   ```
 - Uses the **target config** to set:
   - `BASE_URL` from the target's Connection section
@@ -184,7 +184,7 @@ Write a complete Playwright script to `scripts/demo-run.ts` that:
 **Key pattern:**
 
 ```typescript
-import { launchWithRecording, finalize, requestInput, isCaptureValid, render } from '../.claude/skills/demo/lib/index.js'
+import { launchWithRecording, finalize, requestInput, isCaptureValid, render, getLibHash } from '../.claude/skills/demo/lib/index.js'
 
 const BASE_URL = '...'         // from target
 const TEST_EMAIL = '...'       // from target
@@ -300,6 +300,7 @@ Check whether a previous capture can be reused. Returns `true` if:
 - `manifest.json` and `recording.webm` exist in `outputDir`
 - Current git HEAD matches the manifest's commit hash
 - Working tree is clean (not dirty)
+- Skill lib hash matches (detects lib code changes across linked repos)
 - Scenario/target file hashes match (if paths provided)
 
 | Option | Type | Description |

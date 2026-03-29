@@ -51,6 +51,13 @@ for TARGET in "$@"; do
   elif [ -L "$CLAUDE_DIR/demo" ]; then
     echo "  OK: $CLAUDE_DIR/demo already symlinked (resolves via .agents/)"
   fi
+
+  # Remove stale generated scripts so /demo regenerates with new lib API
+  STALE=$(find "$TARGET/scripts" -name 'demo-*.ts' -o -name 'demo-run.ts' 2>/dev/null)
+  if [ -n "$STALE" ]; then
+    echo "$STALE" | xargs rm -f
+    echo "CLEAN: removed stale demo scripts from $TARGET/scripts/"
+  fi
 done
 
 echo ""

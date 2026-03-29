@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim } from './recorder.js';
 import { renderFrame } from './frame.js';
-import { getGitState, hashFile, readManifest, writeManifest } from './manifest.js';
+import { getGitState, getLibHash, hashFile, readManifest, writeManifest } from './manifest.js';
 /**
  * Re-render an existing capture to MP4 with optional frame compositing.
  * Reads viewport and pause data from the manifest (or uses defaults).
@@ -164,6 +164,7 @@ export async function finalize(session) {
             capture: {
                 commitHash: gitState.commitHash,
                 dirty: gitState.dirty,
+                libHash: getLibHash(),
                 viewport: session._viewport,
                 pauses: session._pauses,
                 pageUrl,

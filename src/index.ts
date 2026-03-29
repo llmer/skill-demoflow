@@ -8,7 +8,7 @@ export type { DesktopFrameOptions, FrameRenderResult } from './frame.js'
 
 export { requestInput, provideInput, checkWaiting } from './prompt.js'
 
-export { readManifest, writeManifest, getGitState, hashFile, isCaptureValid } from './manifest.js'
+export { readManifest, writeManifest, getGitState, getLibHash, hashFile, isCaptureValid } from './manifest.js'
 export type { Manifest, CaptureInfo, RenderInfo, CaptureValidationOptions } from './manifest.js'
 
 export { startStudio } from './studio.js'

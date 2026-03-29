@@ -18,7 +18,8 @@
   ],
   "scripts": {
     "build": "tsc && cp dist/*.js dist/*.d.ts demo/lib/",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "studio": "node dist/studio.js"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.40.0"

@@ -63,6 +63,8 @@ Check `$ARGUMENTS` first:
 
 - **`init`** → Run the [Init Flow](#init-flow) to explore the project and scaffold `.demoflow/`
 - **`list`** → List available scenarios from `.demoflow/scenarios/` and targets from `.demoflow/targets/`
+- **`studio`** → Launch the DemoFlow Studio web UI for adjusting frame options on existing recordings: `npx tsx src/studio.ts` (or `npm run studio` if built). Opens at http://localhost:3274
+- **`render [scenario-name] [--style macos|windows-xp|none] [--title "..."]`** → Re-render an existing capture without re-recording. Only works if `output/{name}/recording.webm` exists.
 - **Anything else** → Run a scenario (see [Run Flow](#run-flow) below)
 
 ---
@@ -141,6 +143,24 @@ If `--target <name>` is present in arguments, use that target. Otherwise use the
 3. Read the scenario file (or use the inline description)
 4. If needed, read relevant source files to understand selectors and page structure
 
+### Step 2b: Check for valid existing capture
+
+Before generating and running a new script, check if a valid capture already exists:
+
+```typescript
+import { isCaptureValid, render } from '../.claude/skills/demo/lib/index.js'
+
+if (isCaptureValid('output/scenario-name', { scenarioPath, targetPath })) {
+  // Skip re-recording — just re-render with current options
+  const result = await render('output/scenario-name', { frameStyle: 'macos' })
+  console.log('Re-rendered from cache:', result.mp4Path)
+} else {
+  // Capture is stale — run the full recording flow below
+}
+```
+
+If `isCaptureValid()` returns true, skip to rendering. This avoids expensive browser replay when only frame options changed.
+
 ### Step 3: Generate a Playwright script
 
 Write a complete Playwright script to `scripts/demo-run.ts` that:
@@ -164,18 +184,30 @@ Write a complete Playwright script to `scripts/demo-run.ts` that:
 **Key pattern:**
 
 ```typescript
-import { launchWithRecording, finalize, requestInput } from '../.claude/skills/demo/lib/index.js'
+import { launchWithRecording, finalize, requestInput, isCaptureValid, render } from '../.claude/skills/demo/lib/index.js'
 
 const BASE_URL = '...'         // from target
 const TEST_EMAIL = '...'       // from target
 const WALLET_TIMEOUT = 180_000 // from target
+const SCENARIO_PATH = '.demoflow/scenarios/scenario-name.md'
+const TARGET_PATH = '.demoflow/targets/local.md'
 
 async function main() {
+  // Check if we can skip re-recording
+  if (isCaptureValid('output/scenario-name', { scenarioPath: SCENARIO_PATH, targetPath: TARGET_PATH })) {
+    console.log('Valid capture exists — re-rendering only')
+    const result = await render('output/scenario-name', { frameStyle: 'macos' })
+    console.log('Video:', result.mp4Path)
+    return
+  }
+
   const session = await launchWithRecording({
     outputDir: 'output/scenario-name',
     headed: true,
     slowMo: 100,
-    desktopFrame: true, // wraps video in macOS desktop + browser chrome
+    desktopFrame: true,
+    scenarioPath: SCENARIO_PATH,
+    targetPath: TARGET_PATH,
   })
   const { page } = session
 
@@ -238,7 +270,7 @@ Returns a `RecordingSession` with `browser`, `context`, `page`, and `outputDir`.
 
 ### `finalize(session) → RecordingResult`
 
-Close the browser, convert video to MP4, apply desktop frame compositing. **Must be called in a finally block** — skipping this loses the HAR and video.
+Close the browser, save a capture manifest, convert video to MP4, and apply desktop frame compositing. **Must be called in a finally block** — skipping this loses the HAR and video.
 
 Returns:
 | Field | Type | Description |
@@ -247,7 +279,35 @@ Returns:
 | `mp4Path` | `string \| null` | Path to MP4 video (`null` if ffmpeg missing) |
 | `webmPath` | `string \| null` | Path to raw WebM video |
 
-Pipeline: close browser → rename WebM → trim pauses (if any) → convert to MP4 → composite with desktop frame → clean up temps.
+Pipeline: close browser → rename WebM → **save manifest.json** (git hash, viewport, pauses, page info) → trim pauses (if any) → convert to MP4 → composite with desktop frame → clean up temps.
+
+### `render(outputDir, options?) → RenderResult`
+
+**Re-render** an existing capture to MP4 without re-recording. Reads viewport and pause data from `manifest.json`. Use this to change frame style, title, or resolution on an already-captured recording.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `frameStyle` | `'macos' \| 'windows-xp' \| 'none'` | `'macos'` | Frame style. `'none'` produces raw viewport video. |
+| `title` | `string` | manifest page title | Window title / tab text. |
+| `url` | `string` | manifest page URL | Address bar URL (XP style). |
+| `resolution` | `{ width, height }` | `1920x1080` | Desktop resolution for the frame. |
+
+Returns `{ mp4Path: string | null }`.
+
+### `isCaptureValid(outputDir, options?) → boolean`
+
+Check whether a previous capture can be reused. Returns `true` if:
+- `manifest.json` and `recording.webm` exist in `outputDir`
+- Current git HEAD matches the manifest's commit hash
+- Working tree is clean (not dirty)
+- Scenario/target file hashes match (if paths provided)
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `scenarioPath` | `string` | Path to scenario file — hash is compared to manifest. |
+| `targetPath` | `string` | Path to target file — hash is compared to manifest. |
+
+Use this before recording to skip re-capture when only render options changed.
 
 ### `requestInput(outputDir, message, options?) → string`
 
@@ -344,6 +404,7 @@ After a successful run, `output/{scenario-name}/` contains:
 | `recording.har` | Full network capture (importable in Chrome DevTools Network tab) |
 | `recording.mp4` | Polished video with click indicators + desktop frame |
 | `recording.webm` | Raw video from Playwright (pre-conversion) |
+| `manifest.json` | Capture metadata (git hash, viewport, pauses) + render options |
 | `error.png` | Screenshot at point of failure (only on error) |
 
 If desktop frame is disabled, `recording.mp4` is the raw viewport video without chrome.

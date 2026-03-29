@@ -16,6 +16,10 @@ export interface RecordingOptions {
     ignoreHTTPSErrors?: boolean;
     /** Wrap video in a desktop frame. Default: true (macOS style). Pass false to disable. */
     desktopFrame?: boolean | DesktopFrameOptions;
+    /** Path to scenario file — stored in manifest for cache invalidation. */
+    scenarioPath?: string;
+    /** Path to target file — stored in manifest for cache invalidation. */
+    targetPath?: string;
 }
 export interface PauseSegment {
     /** Seconds from recording start when pause began */
@@ -41,12 +45,38 @@ export interface RecordingSession {
         width: number;
         height: number;
     };
+    /** @internal scenario file path for manifest hashing */
+    _scenarioPath?: string;
+    /** @internal target file path for manifest hashing */
+    _targetPath?: string;
 }
 export interface RecordingResult {
     harPath: string;
     mp4Path: string | null;
     webmPath: string | null;
 }
+export interface RenderOptions {
+    /** Frame style. 'none' disables frame. Default: 'macos' */
+    frameStyle?: 'macos' | 'windows-xp' | 'none';
+    /** Title for titlebar/tab. Falls back to captured page title. */
+    title?: string;
+    /** URL for address bar (XP style). Falls back to captured page URL. */
+    url?: string;
+    /** Desktop resolution. Default: 1920x1080 */
+    resolution?: {
+        width: number;
+        height: number;
+    };
+}
+export interface RenderResult {
+    mp4Path: string | null;
+}
+/**
+ * Re-render an existing capture to MP4 with optional frame compositing.
+ * Reads viewport and pause data from the manifest (or uses defaults).
+ * Does NOT require a browser session — works entirely from the WebM on disk.
+ */
+export declare function render(outputDir: string, options?: RenderOptions): Promise<RenderResult>;
 /**
  * Launch a Chromium browser with full recording enabled:
  * - HAR capture (all network traffic)
@@ -64,8 +94,11 @@ export declare function pauseRecording(session: RecordingSession): void;
  */
 export declare function resumeRecording(session: RecordingSession): void;
 /**
- * Finalize recording: close browser, rename video, convert to mp4.
+ * Finalize recording: close browser, save manifest, convert + frame.
  * Must be called after the scenario completes (or on error).
+ *
+ * This captures page metadata, saves the manifest with git state and
+ * pause segments, then calls render() to produce the final MP4.
  */
 export declare function finalize(session: RecordingSession): Promise<RecordingResult>;
 //# sourceMappingURL=browser.d.ts.map

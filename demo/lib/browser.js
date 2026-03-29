@@ -40,6 +40,8 @@ export async function render(outputDir, options = {}) {
                 title: options.title ?? manifest?.capture?.pageTitle,
                 url: options.url ?? manifest?.capture?.pageUrl,
                 resolution: options.resolution,
+                windowOffsetY: options.windowOffsetY,
+                wallpaperColor: options.wallpaperColor,
             };
             const frame = await renderFrame(outputDir, viewport, frameOpts);
             const framedPath = join(outputDir, 'recording-framed.mp4');

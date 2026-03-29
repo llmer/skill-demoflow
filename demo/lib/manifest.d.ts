@@ -15,7 +15,7 @@ export interface CaptureInfo {
     timestamp: string;
 }
 export interface RenderInfo {
-    frameStyle: 'macos' | 'windows-xp' | 'none';
+    frameStyle: 'macos' | 'windows-xp' | 'windows-98' | 'none';
     title?: string;
     url?: string;
     resolution: {

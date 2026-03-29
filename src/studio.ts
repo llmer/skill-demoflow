@@ -82,11 +82,13 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, outputDi
     const name = previewMatch[1]
     const manifest = readManifest(join(outputDir, name))
     const viewport = manifest?.capture?.viewport ?? { width: 1280, height: 720 }
-    const style = (url.searchParams.get('style') ?? 'macos') as 'macos' | 'windows-xp' | 'none'
+    const style = (url.searchParams.get('style') ?? 'macos') as 'macos' | 'windows-xp' | 'windows-98' | 'none'
     const title = url.searchParams.get('title') ?? manifest?.capture?.pageTitle ?? 'Untitled'
     const urlParam = url.searchParams.get('url') ?? manifest?.capture?.pageUrl ?? ''
     const resW = parseInt(url.searchParams.get('resWidth') ?? '1920', 10)
     const resH = parseInt(url.searchParams.get('resHeight') ?? '1080', 10)
+    const offsetY = parseInt(url.searchParams.get('offsetY') ?? '0', 10)
+    const wallpaper = url.searchParams.get('wallpaper') ?? ''
     const videoUrl = `/files/${name}/recording.webm`
 
     const html = previewHtml(videoUrl, viewport, {
@@ -94,6 +96,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, outputDi
       title,
       url: urlParam,
       resolution: { width: resW, height: resH },
+      windowOffsetY: offsetY,
+      wallpaperColor: wallpaper || undefined,
     })
     res.writeHead(200, { 'Content-Type': 'text/html' })
     res.end(html)
@@ -186,10 +190,12 @@ function serveFile(req: IncomingMessage, res: ServerResponse, filePath: string):
 // ── Preview HTML ─────────────────────────────────────────────────────────────
 
 interface PreviewOptions {
-  style: 'macos' | 'windows-xp' | 'none'
+  style: 'macos' | 'windows-xp' | 'windows-98' | 'none'
   title: string
   url: string
   resolution: { width: number; height: number }
+  windowOffsetY?: number
+  wallpaperColor?: string
 }
 
 function previewHtml(
@@ -207,10 +213,12 @@ function previewHtml(
   }
 
   const frameHtml = generateFrameHtml(viewport, {
-    style: options.style,
+    style: options.style as 'macos' | 'windows-xp' | 'windows-98',
     title: options.title,
     url: options.url,
     resolution: options.resolution,
+    windowOffsetY: options.windowOffsetY,
+    wallpaperColor: options.wallpaperColor,
   })
 
   // Inject video element into the content area
@@ -505,6 +513,7 @@ function studioHtml(): string {
         <div class="radio-group" id="style-group">
           <label><input type="radio" name="style" value="macos" checked><span>macOS</span></label>
           <label><input type="radio" name="style" value="windows-xp"><span>XP</span></label>
+          <label><input type="radio" name="style" value="windows-98"><span>98</span></label>
           <label><input type="radio" name="style" value="none"><span>None</span></label>
         </div>
       </div>
@@ -529,6 +538,24 @@ function studioHtml(): string {
         </select>
       </div>
 
+      <div class="control-group" id="offset-group">
+        <div class="control-label">Window Offset Y</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="range" id="offset-slider" min="-200" max="200" value="0" style="flex:1;accent-color:#2563eb;">
+          <span id="offset-value" style="font-size:12px;color:#999;min-width:36px;text-align:right;">0px</span>
+        </div>
+      </div>
+
+      <div class="control-group" id="wallpaper-group">
+        <div class="control-label">Wallpaper Color</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="color" id="wallpaper-color" value="#1a0a2e" style="width:36px;height:28px;border:1px solid #2a2a2a;border-radius:4px;background:none;cursor:pointer;">
+          <label style="font-size:12px;color:#999;display:flex;align-items:center;gap:4px;cursor:pointer;">
+            <input type="checkbox" id="wallpaper-custom" style="accent-color:#2563eb;"> Custom
+          </label>
+        </div>
+      </div>
+
       <div class="controls-spacer"></div>
 
       <button class="render-btn" id="render-btn">Save &amp; Render MP4</button>
@@ -546,6 +573,12 @@ const titleInput = $('title-input');
 const urlInput = $('url-input');
 const urlGroup = $('url-group');
 const resSelect = $('resolution-select');
+const offsetSlider = $('offset-slider');
+const offsetValue = $('offset-value');
+const offsetGroup = $('offset-group');
+const wallpaperColor = $('wallpaper-color');
+const wallpaperCustom = $('wallpaper-custom');
+const wallpaperGroup = $('wallpaper-group');
 const renderBtn = $('render-btn');
 const statusEl = $('status');
 
@@ -607,7 +640,10 @@ function getStyle() {
 }
 
 function toggleUrlGroup() {
-  urlGroup.style.display = getStyle() === 'windows-xp' ? '' : 'none';
+  const s = getStyle();
+  urlGroup.style.display = (s === 'windows-xp' || s === 'windows-98') ? '' : 'none';
+  offsetGroup.style.display = s === 'none' ? 'none' : '';
+  wallpaperGroup.style.display = s === 'none' ? 'none' : '';
 }
 
 function getOptions() {
@@ -617,6 +653,8 @@ function getOptions() {
     title: titleInput.value,
     url: urlInput.value,
     resolution: { width: w, height: h },
+    offsetY: parseInt(offsetSlider.value, 10),
+    wallpaper: wallpaperCustom.checked ? wallpaperColor.value : '',
   };
 }
 
@@ -629,10 +667,12 @@ function updatePreview() {
     url: opts.url,
     resWidth: String(opts.resolution.width),
     resHeight: String(opts.resolution.height),
+    offsetY: String(opts.offsetY),
+    wallpaper: opts.wallpaper,
   });
   previewFrame.src = '/preview/' + current + '?' + params;
 
-  // Scale iframe to fit the preview pane
+  // Scale iframe to fit the preview pane using CSS transform
   const pane = previewPane;
   const maxW = pane.clientWidth - 40;
   const maxH = pane.clientHeight - 40;
@@ -646,8 +686,10 @@ function updatePreview() {
     fh = opts.resolution.height;
   }
   const scale = Math.min(maxW / fw, maxH / fh, 1);
-  previewFrame.style.width = Math.round(fw * scale) + 'px';
-  previewFrame.style.height = Math.round(fh * scale) + 'px';
+  previewFrame.style.width = fw + 'px';
+  previewFrame.style.height = fh + 'px';
+  previewFrame.style.transform = 'scale(' + scale + ')';
+  previewFrame.style.transformOrigin = 'center center';
 }
 
 // Debounce text inputs
@@ -664,6 +706,12 @@ document.querySelectorAll('input[name="style"]').forEach(r => {
 titleInput.addEventListener('input', scheduleUpdate);
 urlInput.addEventListener('input', scheduleUpdate);
 resSelect.addEventListener('change', updatePreview);
+offsetSlider.addEventListener('input', () => {
+  offsetValue.textContent = offsetSlider.value + 'px';
+  scheduleUpdate();
+});
+wallpaperColor.addEventListener('input', () => { if (wallpaperCustom.checked) scheduleUpdate(); });
+wallpaperCustom.addEventListener('change', updatePreview);
 
 renderBtn.addEventListener('click', async () => {
   if (!current) return;
@@ -681,6 +729,8 @@ renderBtn.addEventListener('click', async () => {
         title: opts.title,
         url: opts.url,
         resolution: opts.resolution,
+        windowOffsetY: opts.offsetY,
+        wallpaperColor: opts.wallpaper || undefined,
       }),
     });
     const result = await res.json();

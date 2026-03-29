@@ -57,16 +57,20 @@ export interface RecordingResult {
 }
 export interface RenderOptions {
     /** Frame style. 'none' disables frame. Default: 'macos' */
-    frameStyle?: 'macos' | 'windows-xp' | 'none';
+    frameStyle?: 'macos' | 'windows-xp' | 'windows-98' | 'none';
     /** Title for titlebar/tab. Falls back to captured page title. */
     title?: string;
-    /** URL for address bar (XP style). Falls back to captured page URL. */
+    /** URL for address bar (XP/98 style). Falls back to captured page URL. */
     url?: string;
     /** Desktop resolution. Default: 1920x1080 */
     resolution?: {
         width: number;
         height: number;
     };
+    /** Vertical offset in px from centered position. Default: 0 */
+    windowOffsetY?: number;
+    /** Solid wallpaper color. Overrides the default gradient if set. */
+    wallpaperColor?: string;
 }
 export interface RenderResult {
     mp4Path: string | null;

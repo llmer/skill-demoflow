@@ -64,7 +64,7 @@ Check `$ARGUMENTS` first:
 - **`init`** → Run the [Init Flow](#init-flow) to explore the project and scaffold `.demoflow/`
 - **`list`** → List available scenarios from `.demoflow/scenarios/` and targets from `.demoflow/targets/`
 - **`studio`** → Launch the DemoFlow Studio web UI for adjusting frame options on existing recordings: `npx tsx src/studio.ts` (or `npm run studio` if built). Opens at http://localhost:3274
-- **`render [scenario-name] [--style macos|windows-xp|none] [--title "..."]`** → Re-render an existing capture without re-recording. Only works if `output/{name}/recording.webm` exists.
+- **`render [scenario-name] [--style macos|windows-xp|windows-98|none] [--title "..."]`** → Re-render an existing capture without re-recording. Only works if `output/{name}/recording.webm` exists.
 - **Anything else** → Run a scenario (see [Run Flow](#run-flow) below)
 
 ---
@@ -251,7 +251,7 @@ Tell the user:
 
 After reporting results, ask the user if they'd like to adjust the video. Present these options:
 
-- **Change frame style** — re-render with `macos`, `windows-xp`, or `none` (raw viewport)
+- **Change frame style** — re-render with `macos`, `windows-xp`, `windows-98`, or `none` (raw viewport)
 - **Change title** — update the text shown in the frame's titlebar/tab
 - **Open Studio** — launch the DemoFlow Studio web UI at http://localhost:3274 for live preview and adjustments
 - **Keep as-is** — done
@@ -312,7 +312,7 @@ Pipeline: close browser → rename WebM → **save manifest.json** (git hash, vi
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `frameStyle` | `'macos' \| 'windows-xp' \| 'none'` | `'macos'` | Frame style. `'none'` produces raw viewport video. |
+| `frameStyle` | `'macos' \| 'windows-xp' \| 'windows-98' \| 'none'` | `'macos'` | Frame style. `'none'` produces raw viewport video. |
 | `title` | `string` | manifest page title | Window title / tab text. |
 | `url` | `string` | manifest page URL | Address bar URL (XP style). |
 | `resolution` | `{ width, height }` | `1920x1080` | Desktop resolution for the frame. |
@@ -379,23 +379,32 @@ Pass to `launchWithRecording({ desktopFrame: ... })`:
 | `true` (default) | macOS Sonoma style frame |
 | `false` | No frame — raw viewport video |
 | `{ style: 'macos' }` | macOS Sonoma with traffic lights and tab |
-| `{ style: 'windows-xp' }` | Windows XP with IE chrome, taskbar, and Start button |
+| `{ style: 'windows-xp' }` | Windows XP with IE chrome, taskbar, Start button (uses XP.css) |
+| `{ style: 'windows-98' }` | Windows 98 with classic grey chrome (uses 98.css) |
 | `{ title: 'My App' }` | Override the tab/titlebar text (default: page title at finalize) |
 | `{ resolution: { width: 1920, height: 1080 } }` | Desktop resolution (default: 1920x1080) |
+| `{ windowOffsetY: -50 }` | Shift window up/down from center (negative = up) |
+| `{ wallpaperColor: '#008080' }` | Solid wallpaper color (overrides default gradient) |
 
 ### Frame anatomy
 
 **macOS (default):**
 - Dark gradient wallpaper (purple/blue tones)
-- Window with rounded corners (top and bottom), drop shadow
+- Window vertically centered with rounded corners, drop shadow
 - Titlebar: traffic lights (red/yellow/green) + centered tab with page title
 - Content area: your recorded video
 
-**Windows XP:**
+**Windows XP (via XP.css):**
 - Blue sky + green hills wallpaper
-- Blue gradient titlebar with IE icon + minimize/maximize/close
-- Address bar with URL + Go button
+- Authentic XP title bar with minimize/maximize/close
+- Address bar with URL + Go button, status bar
 - XP taskbar at bottom with green Start button + clock
+
+**Windows 98 (via 98.css):**
+- Teal wallpaper (classic default)
+- Classic grey window chrome with beveled edges
+- Address bar with URL, status bar
+- Grey taskbar with Start button
 
 ### How it works
 
@@ -483,7 +492,7 @@ When you see these in the scenario, handle them in the generated script:
 4. **Use `pauseRecording` / `resumeRecording` around long waits.** Any operation where the screen is static for >2s should be trimmed.
 5. **Set viewport to match your target audience.** 1280x720 is a safe default. Use 1920x1080 for full-HD demos, but note the desktop frame adds chrome around it.
 6. **The desktop frame title is captured at finalize.** Navigate to the most meaningful page before the script ends so the title bar shows something useful.
-7. **Use `desktopFrame: { style: 'windows-xp' }` for fun.** It generates a full Windows XP Internet Explorer chrome with taskbar. Great for retro-themed demos.
+7. **Use `desktopFrame: { style: 'windows-xp' }` or `'windows-98'` for retro frames.** XP uses authentic XP.css styling with IE chrome and taskbar. 98 gives classic grey beveled chrome. Both use the XP.css library for faithful rendering.
 8. **Check for ffmpeg before running.** Without it, you get HAR + WebM but no MP4 and no desktop frame compositing.
 
 ---

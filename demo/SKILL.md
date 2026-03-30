@@ -170,39 +170,91 @@ if (isCaptureValid('output/scenario-name', { scenarioPath, targetPath })) {
 
 If `isCaptureValid()` returns true, skip to rendering. This avoids expensive browser replay when only frame options changed.
 
-### Step 3: Generate a Playwright script
+### Step 3: Generate a step-based script
 
-Write a complete Playwright script to `scripts/demo-run.ts` that:
+Write a script to `scripts/demo-run.ts` that uses `runSteps()` with a declarative `Step[]` array. **Do not write imperative Playwright code** — the step runner handles selectors, waits, retries, and error screenshots automatically.
 
 - Imports from the skill lib (path relative to `scripts/`):
   ```typescript
-  import { launchWithRecording, finalize, requestInput, pauseRecording, resumeRecording, getLibHash } from '../.claude/skills/demo/lib/index.js'
+  import { launchWithRecording, finalize, runSteps, isCaptureValid, render, type Step } from '../.claude/skills/demo/lib/index.js'
   ```
-- Uses the **target config** to set:
-  - `BASE_URL` from the target's Connection section
-  - `TEST_EMAIL` from the target's Connection section
-  - OTP strategy: if target says `strategy: prompt`, use `requestInput()`. If target provides Mailpit API details, auto-fetch the OTP.
-  - Timeouts from the target's Behavior section
-- Launches a headed browser with HAR + video recording
-- Executes every step from the scenario
-- Takes error screenshots on failure
-- Calls `finalize()` in a finally block to ensure recordings are saved
+- Config variables at the top from the **target config**: `BASE_URL`, `TEST_EMAIL`, timeouts
+- A `steps: Step[]` array that maps 1:1 from the scenario
+- Fixed boilerplate: `launchWithRecording()` → `runSteps()` → `finalize()`
 
 **Output directory**: `output/{scenario-name}/`
 
-**Key pattern:**
+#### Step Type Reference
+
+| Action | Fields | What it does |
+|--------|--------|-------------|
+| `navigate` | `url`, `waitUntil?` | Go to URL, auto-waits for networkidle |
+| `click` | `target` | Click element — runner resolves text to the right selector |
+| `fill` | `target`, `value` | Type into input — clears first by default |
+| `select` | `target`, `value` | Choose dropdown option |
+| `press` | `key` | Press keyboard key (e.g. `'Enter'`, `'Tab'`) |
+| `wait` | `ms?` or `for?` | Wait for time, URL pattern (`**/path`), or element text |
+| `assert` | `target`, `state?` | Verify element is visible/hidden/attached |
+| `screenshot` | `name` | Save screenshot to output dir |
+| `save` | `name`, `from` (`url`/`text`/`value`), `target?`, `pattern?` | Extract value into a variable |
+| `input` | `message`, `saveAs?` | Prompt user for input (OTP, etc.) — auto-pauses video |
+| `pause` / `resume` | — | Manually trim idle time from video |
+| `exec` | `fn(ctx)` | Escape hatch for custom logic (OTP fetch, API calls) |
+
+#### Target resolution (`target` field)
+
+The runner tries multiple Playwright strategies automatically. Just use the visible text:
+
+- `"Create Workspace"` → tries getByRole(button), getByText, etc. — finds what works
+- `"label:Email"` → `page.getByLabel('Email')` — use when text is ambiguous
+- `"placeholder:Enter name"` → `page.getByPlaceholder('Enter name')`
+- `"role:link[Dashboard]"` → `page.getByRole('link', { name: 'Dashboard' })`
+- `"testid:submit-btn"` → `page.getByTestId('submit-btn')`
+- `"css:.custom-selector"` → `page.locator('.custom-selector')` — last resort
+
+**Default: just use the visible text.** Only add prefixes when you need to disambiguate.
+
+#### Variable interpolation
+
+`save` and `input` steps store values. Use `${name}` in any later step's string fields:
 
 ```typescript
-import { launchWithRecording, finalize, requestInput, isCaptureValid, render, getLibHash } from '../.claude/skills/demo/lib/index.js'
+{ action: 'save', name: 'ws_id', from: 'url', pattern: '/workspaces/([^/]+)' },
+{ action: 'navigate', url: `${BASE_URL}/workspaces/\${ws_id}/board` },
+```
+
+Note: use `\${}` in template literals so JavaScript doesn't interpolate — the runner handles it at runtime.
+
+#### Key pattern
+
+```typescript
+import { launchWithRecording, finalize, runSteps, isCaptureValid, render, type Step } from '../.claude/skills/demo/lib/index.js'
 
 const BASE_URL = '...'         // from target
 const TEST_EMAIL = '...'       // from target
-const WALLET_TIMEOUT = 180_000 // from target
 const SCENARIO_PATH = '.demoflow/scenarios/scenario-name.md'
 const TARGET_PATH = '.demoflow/targets/local.md'
 
+const steps: Step[] = [
+  { action: 'navigate', url: `${BASE_URL}/login` },
+  { action: 'fill', target: 'label:Email', value: TEST_EMAIL },
+  { action: 'click', target: 'Continue with Email' },
+  { action: 'wait', for: '**/verify' },
+  // OTP via Mailpit (custom logic → use exec)
+  { action: 'exec', description: 'Fetch OTP from Mailpit', fn: async (ctx) => {
+    const res = await fetch('http://127.0.0.1:8025/api/v1/messages')
+    const msgs = await res.json() as any
+    const body = msgs.messages[0]?.Text ?? ''
+    ctx.vars.otp = (body.match(/(\d{6})/)?.[1]) ?? ''
+  }},
+  { action: 'fill', target: 'placeholder:Enter code', value: '\${otp}' },
+  { action: 'click', target: 'Verify' },
+  { action: 'wait', for: '**/dashboard' },
+  // OR: OTP via user prompt
+  // { action: 'input', message: 'Enter the OTP code', saveAs: 'otp' },
+]
+
 async function main() {
-  // Check if we can skip re-recording
   if (isCaptureValid('output/scenario-name', { scenarioPath: SCENARIO_PATH, targetPath: TARGET_PATH })) {
     console.log('Valid capture exists — re-rendering only')
     const result = await render('output/scenario-name', { frameStyle: 'macos' })
@@ -218,16 +270,11 @@ async function main() {
     scenarioPath: SCENARIO_PATH,
     targetPath: TARGET_PATH,
   })
-  const { page } = session
 
   try {
-    // Steps here, using target-specific values
-
-    // When waiting for user input, pass session to auto-trim idle time from video:
-    const otp = await requestInput(session.outputDir, 'Enter the OTP code', { session })
-  } catch (err) {
-    await page.screenshot({ path: 'output/scenario-name/error.png' })
-    throw err
+    await runSteps(session, steps, {
+      onStep: (i, step, status) => console.log(`[${status}] Step ${i + 1}: ${step.description ?? step.action}`)
+    })
   } finally {
     const result = await finalize(session)
     console.log('HAR:', result.harPath)
@@ -418,6 +465,21 @@ The session also has `browser`, `context`, `page`, `outputDir` like `RecordingSe
 ## Recording Library Reference
 
 All functions are exported from the skill lib at `.claude/skills/demo/lib/index.js`.
+
+### `runSteps(session, steps, options?) → { vars }`
+
+Execute a declarative `Step[]` array against a recording session. Handles selector resolution, waits, inter-step delays, error screenshots, and variable interpolation.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `actionDelay` | `number` | `500` | Ms between steps for video readability. |
+| `actionTimeout` | `number` | `30000` | Ms to wait for elements before failing. |
+| `screenshotOnError` | `boolean` | `true` | Take error screenshot when a step fails. |
+| `onStep` | `(index, step, status) => void` | — | Progress callback for logging. |
+
+Returns `{ vars: Record<string, string> }` — all saved variables from `save` and `input` steps.
+
+On failure, throws with message: `Step N failed (description): original error`. Takes `error-step-N.png` screenshot automatically.
 
 ### `launchWithRecording(options) → RecordingSession`
 
@@ -617,28 +679,25 @@ When generating the script, read the target file and use its values. If a value 
 
 ## Handling Directives
 
-When you see these in the scenario, handle them in the generated script:
+When you see these in the scenario, map them to `Step` objects:
 
-| Directive | Generated Code |
-|-----------|---------------|
-| `[prompt: message]` | `const val = await requestInput(outputDir, "message", { session })` |
-| `[save: var from url]` | `const var = page.url().match(/pattern/)[1]` |
-| `[pause: Ns]` | `await new Promise(r => setTimeout(r, N * 1000))` |
-| `[assert: condition]` | Appropriate Playwright assertion |
-| `[screenshot: name]` | `await page.screenshot({ path: join(outputDir, 'name.png') })` |
+| Directive | Step |
+|-----------|------|
+| `[prompt: message]` | `{ action: 'input', message: '...', saveAs: 'varName' }` |
+| `[save: var from url]` | `{ action: 'save', name: 'var', from: 'url', pattern: '...' }` |
+| `[pause: Ns]` | `{ action: 'wait', ms: N * 1000 }` |
+| `[assert: condition]` | `{ action: 'assert', target: '...', state: 'visible' }` |
+| `[screenshot: name]` | `{ action: 'screenshot', name: '...' }` |
 
 ## Script Generation Guidelines
 
-- Use target-specified timeouts (don't hardcode)
-- Add `await new Promise(r => setTimeout(r, 500))` between actions for video readability
-- Use Playwright's text-based selectors when possible: `page.click('button:has-text("Create Trust")')`
-- Handle dialogs/modals that might appear unexpectedly
-- Add retry logic for flaky operations
-- Always wrap the main flow in try/catch/finally with `finalize()` in finally
-- Never skip `finalize()` — even on error, it saves the HAR and whatever video was captured
-- Prefer `page.getByRole()` and `page.getByText()` over CSS selectors
-- Use `page.waitForURL()` after navigation actions to ensure the page has loaded
-- Add `page.waitForLoadState('networkidle')` before screenshots or assertions on dynamic pages
+- **Map scenario text directly to Step objects.** "Click Create Trust" → `{ action: 'click', target: 'Create Trust' }`. Don't overthink selectors.
+- **Use plain text targets by default.** The runner resolves them automatically. Only add prefixes (`label:`, `css:`, etc.) when the text is ambiguous.
+- **Don't add manual waits or delays.** The runner injects `actionDelay` between steps and auto-waits for navigation after `navigate` steps.
+- **Use `exec` steps sparingly** — only for custom logic like fetching OTP from Mailpit or calling APIs. Most scenarios need 0-2 exec steps.
+- **Never skip `finalize()`** — even on error, it saves the HAR and whatever video was captured. The try/finally structure in the template handles this.
+- **Use variable interpolation** (`\${varName}`) for dynamic values from `save` or `input` steps. Don't thread local variables through code.
+- **The boilerplate never changes.** Only modify the `steps` array and the config constants at the top.
 
 ---
 

@@ -17,10 +17,15 @@ export interface CaptureInfo {
   pageUrl?: string
   pageTitle?: string
   timestamp: string
+  /** Terminal recording metadata (absent for browser recordings). */
+  terminal?: {
+    shell: string
+    cwd: string
+  }
 }
 
 export interface RenderInfo {
-  frameStyle: 'macos' | 'windows-xp' | 'windows-98' | 'none'
+  frameStyle: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'none'
   title?: string
   url?: string
   resolution: { width: number; height: number }

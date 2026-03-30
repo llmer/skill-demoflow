@@ -139,7 +139,7 @@ export function resumeRecording(session) {
  * This captures page metadata, saves the manifest with git state and
  * pause segments, then calls render() to produce the final MP4.
  */
-export async function finalize(session) {
+export async function finalize(session, overrides) {
     const { page, context, browser, outputDir } = session;
     // Capture page info before closing (needed for frame title/URL)
     let pageUrl;
@@ -151,6 +151,11 @@ export async function finalize(session) {
     catch {
         // Page may already be closed
     }
+    // Apply overrides (e.g. terminal sessions provide meaningful titles)
+    if (overrides?.pageTitle)
+        pageTitle = overrides.pageTitle;
+    if (overrides?.pageUrl)
+        pageUrl = overrides.pageUrl;
     await page.close();
     await context.close();
     await browser.close();

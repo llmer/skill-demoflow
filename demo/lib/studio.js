@@ -505,6 +505,8 @@ function studioHtml() {
           <label><input type="radio" name="style" value="macos" checked><span>macOS</span></label>
           <label><input type="radio" name="style" value="windows-xp"><span>XP</span></label>
           <label><input type="radio" name="style" value="windows-98"><span>98</span></label>
+          <label><input type="radio" name="style" value="macos-terminal"><span>Terminal</span></label>
+          <label><input type="radio" name="style" value="vscode"><span>VS Code</span></label>
           <label><input type="radio" name="style" value="none"><span>None</span></label>
         </div>
       </div>
@@ -645,7 +647,7 @@ async function selectRecording(name) {
     statusTextInput.value = comp.statusText ?? '';
     clockTextInput.value = comp.clockText ?? '';
   } else if (manifest?.capture) {
-    setStyle('macos');
+    setStyle(manifest.capture.terminal ? 'macos-terminal' : 'macos');
     titleInput.value = manifest.capture.pageTitle || '';
     urlInput.value = manifest.capture.pageUrl || '';
     resetComponents();
@@ -684,7 +686,8 @@ function getStyle() {
 function toggleStyleControls() {
   const s = getStyle();
   const isWin = s === 'windows-xp' || s === 'windows-98';
-  const isMac = s === 'macos';
+  const isMac = s === 'macos' || s === 'macos-terminal';
+  const isTerminal = s === 'macos-terminal' || s === 'vscode';
   const isNone = s === 'none';
 
   urlGroup.style.display = isWin ? '' : 'none';
@@ -692,8 +695,8 @@ function toggleStyleControls() {
   wallpaperGroup.style.display = isNone ? 'none' : '';
 
   // Component visibility toggles
-  compVisGroup.style.display = isNone ? 'none' : '';
-  tlToggle.style.display = isMac ? '' : 'none';
+  compVisGroup.style.display = (isNone || isTerminal) ? 'none' : '';
+  tlToggle.style.display = (isMac && !isTerminal) ? '' : 'none';
   abToggle.style.display = isWin ? '' : 'none';
   sbToggle.style.display = isWin ? '' : 'none';
   tbToggle.style.display = isWin ? '' : 'none';

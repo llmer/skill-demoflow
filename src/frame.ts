@@ -24,7 +24,7 @@ export interface FrameComponents {
 
 export interface DesktopFrameOptions {
   /** OS style. Default: 'macos' */
-  style?: 'macos' | 'windows-xp' | 'windows-98'
+  style?: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode'
   /** Desktop resolution. Default: 1920x1080 */
   resolution?: { width: number; height: number }
   /** URL to display in address bar. */
@@ -499,6 +499,280 @@ function w98FrameHtml(
 }
 
 // ---------------------------------------------------------------------------
+// macOS Terminal
+// ---------------------------------------------------------------------------
+
+const MACOS_TERMINAL_TITLE_BAR_HEIGHT = 38
+const MACOS_TERMINAL_BOTTOM_EDGE = 0
+
+function macosTerminalFrameHtml(
+  viewport: { width: number; height: number },
+  resolution: { width: number; height: number },
+  options: DesktopFrameOptions,
+): string {
+  const layout = computeLayout(viewport, resolution, MACOS_TERMINAL_TITLE_BAR_HEIGHT, MACOS_TERMINAL_BOTTOM_EDGE, options.windowOffsetY)
+  const title = options.title ?? 'Terminal'
+  const wallpaper = options.wallpaperColor ? options.wallpaperColor : MACOS_DEFAULT_WALLPAPER
+  const c = options.components
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: ${resolution.width}px;
+    height: ${resolution.height}px;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: ${wallpaper};
+  }
+
+  .window {
+    position: absolute;
+    top: ${layout.windowY}px;
+    left: ${layout.windowX}px;
+    width: ${layout.windowWidth}px;
+    height: ${layout.windowHeight}px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow:
+      0 25px 60px rgba(0, 0, 0, 0.45),
+      0 8px 20px rgba(0, 0, 0, 0.3),
+      0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  }
+
+  .titlebar {
+    height: ${MACOS_TERMINAL_TITLE_BAR_HEIGHT}px;
+    background: linear-gradient(180deg, #3c3c3c 0%, #323232 100%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    position: relative;
+  }
+
+  .traffic-lights {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 1;
+  }
+
+  .traffic-light {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .tl-close { background: #FF5F57; border: 0.5px solid #E14942; }
+  .tl-minimize { background: #FFBD2E; border: 0.5px solid #DFA123; }
+  .tl-maximize { background: #27C93F; border: 0.5px solid #1EAD2B; }
+
+  .title-text {
+    position: absolute;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+  }
+
+  .content-area {
+    width: ${viewport.width}px;
+    height: ${viewport.height}px;
+    background: #1e1e1e;
+  }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      ${c?.hideTrafficLights ? '' : `<div class="traffic-lights">
+        <div class="traffic-light tl-close"></div>
+        <div class="traffic-light tl-minimize"></div>
+        <div class="traffic-light tl-maximize"></div>
+      </div>`}
+      <div class="title-text">${escapeHtml(title)}</div>
+    </div>
+    <div class="content-area"></div>
+  </div>
+</body>
+</html>`
+}
+
+// ---------------------------------------------------------------------------
+// VS Code Terminal
+// ---------------------------------------------------------------------------
+
+const VSCODE_TITLE_BAR_HEIGHT = 36
+const VSCODE_TAB_BAR_HEIGHT = 35
+const VSCODE_BOTTOM_EDGE = 24  // status bar
+
+function vscodeFrameHtml(
+  viewport: { width: number; height: number },
+  resolution: { width: number; height: number },
+  options: DesktopFrameOptions,
+): string {
+  const chromeHeight = VSCODE_TITLE_BAR_HEIGHT + VSCODE_TAB_BAR_HEIGHT
+  const layout = computeLayout(viewport, resolution, chromeHeight, VSCODE_BOTTOM_EDGE, options.windowOffsetY)
+  const title = options.title ?? 'Terminal'
+  const wallpaper = options.wallpaperColor ? options.wallpaperColor : MACOS_DEFAULT_WALLPAPER
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: ${resolution.width}px;
+    height: ${resolution.height}px;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: ${wallpaper};
+  }
+
+  .window {
+    position: absolute;
+    top: ${layout.windowY}px;
+    left: ${layout.windowX}px;
+    width: ${layout.windowWidth}px;
+    height: ${layout.windowHeight}px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow:
+      0 25px 60px rgba(0, 0, 0, 0.45),
+      0 8px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .vscode-titlebar {
+    height: ${VSCODE_TITLE_BAR_HEIGHT}px;
+    background: #1f1f1f;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    position: relative;
+  }
+
+  .traffic-lights {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 1;
+  }
+
+  .traffic-light {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .tl-close { background: #FF5F57; border: 0.5px solid #E14942; }
+  .tl-minimize { background: #FFBD2E; border: 0.5px solid #DFA123; }
+  .tl-maximize { background: #27C93F; border: 0.5px solid #1EAD2B; }
+
+  .vscode-title-text {
+    position: absolute;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+  }
+
+  .vscode-tab-bar {
+    height: ${VSCODE_TAB_BAR_HEIGHT}px;
+    background: #181818;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 8px;
+    border-bottom: 1px solid #2b2b2b;
+  }
+
+  .vscode-tab {
+    background: #1f1f1f;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 12px;
+    padding: 6px 16px;
+    border-top: 1px solid #007acc;
+    border-left: 1px solid #2b2b2b;
+    border-right: 1px solid #2b2b2b;
+    border-radius: 4px 4px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tab-icon {
+    font-size: 14px;
+  }
+
+  .content-area {
+    width: ${viewport.width}px;
+    height: ${viewport.height}px;
+    background: #1e1e1e;
+  }
+
+  .status-bar {
+    height: ${VSCODE_BOTTOM_EDGE}px;
+    background: #007acc;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    gap: 12px;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .status-right {
+    margin-left: auto;
+    display: flex;
+    gap: 12px;
+  }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="vscode-titlebar">
+      <div class="traffic-lights">
+        <div class="traffic-light tl-close"></div>
+        <div class="traffic-light tl-minimize"></div>
+        <div class="traffic-light tl-maximize"></div>
+      </div>
+      <div class="vscode-title-text">${escapeHtml(title)} — Visual Studio Code</div>
+    </div>
+    <div class="vscode-tab-bar">
+      <div class="vscode-tab">
+        <span class="tab-icon">&gt;_</span>
+        ${escapeHtml(title)}
+      </div>
+    </div>
+    <div class="content-area"></div>
+    <div class="status-bar">
+      <span class="status-item">main</span>
+      <div class="status-right">
+        <span>Ln 1, Col 1</span>
+        <span>UTF-8</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -514,6 +788,10 @@ function styleParams(style: string, components?: FrameComponents): { chromeHeigh
         chromeHeight: W98_TITLE_BAR_HEIGHT + (components?.hideAddressBar ? 0 : W98_ADDRESS_BAR_HEIGHT),
         bottomEdge: components?.hideStatusBar ? 0 : W98_STATUS_BAR_HEIGHT,
       }
+    case 'macos-terminal':
+      return { chromeHeight: MACOS_TERMINAL_TITLE_BAR_HEIGHT, bottomEdge: MACOS_TERMINAL_BOTTOM_EDGE }
+    case 'vscode':
+      return { chromeHeight: VSCODE_TITLE_BAR_HEIGHT + VSCODE_TAB_BAR_HEIGHT, bottomEdge: VSCODE_BOTTOM_EDGE }
     default:
       return { chromeHeight: MACOS_TITLE_BAR_HEIGHT, bottomEdge: MACOS_BOTTOM_EDGE }
   }
@@ -530,6 +808,12 @@ export function generateFrameHtml(
   }
   if (style === 'windows-xp') {
     return xpFrameHtml(viewport, resolution, options)
+  }
+  if (style === 'macos-terminal') {
+    return macosTerminalFrameHtml(viewport, resolution, options)
+  }
+  if (style === 'vscode') {
+    return vscodeFrameHtml(viewport, resolution, options)
   }
   return macosFrameHtml(viewport, resolution, options)
 }

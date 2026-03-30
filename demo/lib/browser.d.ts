@@ -57,7 +57,7 @@ export interface RecordingResult {
 }
 export interface RenderOptions {
     /** Frame style. 'none' disables frame. Default: 'macos' */
-    frameStyle?: 'macos' | 'windows-xp' | 'windows-98' | 'none';
+    frameStyle?: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'none';
     /** Title for titlebar/tab. Falls back to captured page title. */
     title?: string;
     /** URL for address bar (XP/98 style). Falls back to captured page URL. */
@@ -106,5 +106,8 @@ export declare function resumeRecording(session: RecordingSession): void;
  * This captures page metadata, saves the manifest with git state and
  * pause segments, then calls render() to produce the final MP4.
  */
-export declare function finalize(session: RecordingSession): Promise<RecordingResult>;
+export declare function finalize(session: RecordingSession, overrides?: {
+    pageTitle?: string;
+    pageUrl?: string;
+}): Promise<RecordingResult>;
 //# sourceMappingURL=browser.d.ts.map

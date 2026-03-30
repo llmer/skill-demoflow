@@ -62,7 +62,7 @@ export interface RecordingResult {
 
 export interface RenderOptions {
   /** Frame style. 'none' disables frame. Default: 'macos' */
-  frameStyle?: 'macos' | 'windows-xp' | 'windows-98' | 'none'
+  frameStyle?: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'none'
   /** Title for titlebar/tab. Falls back to captured page title. */
   title?: string
   /** URL for address bar (XP/98 style). Falls back to captured page URL. */
@@ -242,7 +242,10 @@ export function resumeRecording(session: RecordingSession): void {
  * This captures page metadata, saves the manifest with git state and
  * pause segments, then calls render() to produce the final MP4.
  */
-export async function finalize(session: RecordingSession): Promise<RecordingResult> {
+export async function finalize(
+  session: RecordingSession,
+  overrides?: { pageTitle?: string; pageUrl?: string },
+): Promise<RecordingResult> {
   const { page, context, browser, outputDir } = session
 
   // Capture page info before closing (needed for frame title/URL)
@@ -254,6 +257,10 @@ export async function finalize(session: RecordingSession): Promise<RecordingResu
   } catch {
     // Page may already be closed
   }
+
+  // Apply overrides (e.g. terminal sessions provide meaningful titles)
+  if (overrides?.pageTitle) pageTitle = overrides.pageTitle
+  if (overrides?.pageUrl) pageUrl = overrides.pageUrl
 
   await page.close()
   await context.close()
@@ -292,7 +299,7 @@ export async function finalize(session: RecordingSession): Promise<RecordingResu
     // Render: convert to MP4 + frame composite
     const frameStyle = session._frameOptions === null
       ? 'none' as const
-      : (session._frameOptions.style ?? 'macos') as 'macos' | 'windows-xp' | 'windows-98'
+      : (session._frameOptions.style ?? 'macos') as Exclude<RenderOptions['frameStyle'], 'none' | undefined>
 
     const renderResult = await render(outputDir, {
       frameStyle,

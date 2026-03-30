@@ -1,13 +1,13 @@
 ---
 name: demo
-description: Run browser automation scenarios with HAR + video recording from natural language flow descriptions. Use when the user wants to generate demo videos, capture HAR files, or run acceptance tests through the browser.
+description: Run browser or terminal automation scenarios with video recording from natural language flow descriptions. Use when the user wants to generate demo videos, capture HAR files, record CLI tool demos, or run acceptance tests.
 argument-hint: "[scenario-name or inline description] [--target name]"
 allowed-tools: Bash, Read, Write, Glob, Grep, Agent
 ---
 
 # Demo Flow Runner
 
-You generate and run Playwright browser automation scripts from natural language scenario descriptions, with full recording (HAR + video + click visualization).
+You generate and run Playwright automation scripts from natural language scenario descriptions, with full recording (video + click/keystroke visualization). Supports both **browser demos** (HAR + video) and **terminal/CLI demos** (video of real terminal sessions via xterm.js + node-pty).
 
 ## Preamble (run first)
 
@@ -40,6 +40,13 @@ else
   echo "FFMPEG: missing (video conversion will fail)"
 fi
 
+# Check node-pty (required for terminal demos, optional otherwise)
+if node -e "require('node-pty')" 2>/dev/null; then
+  echo "NODE_PTY: ready"
+else
+  echo "NODE_PTY: missing (install with 'npm install node-pty' for terminal demos)"
+fi
+
 # Check for .demoflow
 if [ -d ".demoflow" ]; then
   echo "DEMOFLOW: initialized"
@@ -57,6 +64,8 @@ If `CHROMIUM` is `missing`: run `npx playwright install chromium`.
 
 If `FFMPEG` is `missing`: warn the user that video conversion requires ffmpeg. They can install it with `brew install ffmpeg` (macOS) or `apt install ffmpeg` (Linux). Recording will still work but MP4 output will be skipped.
 
+If `NODE_PTY` is `missing` and the user requests a terminal demo: run `npm install node-pty`. This is only required for terminal/CLI demos, not browser demos.
+
 ## Subcommands
 
 Check `$ARGUMENTS` first:
@@ -64,7 +73,7 @@ Check `$ARGUMENTS` first:
 - **`init`** → Run the [Init Flow](#init-flow) to explore the project and scaffold `.demoflow/`
 - **`list`** → List available scenarios from `.demoflow/scenarios/` and targets from `.demoflow/targets/`
 - **`studio`** → Launch the DemoFlow Studio web UI for adjusting frame options on existing recordings: `npx tsx src/studio.ts` (or `npm run studio` if built). Opens at http://localhost:3274
-- **`render [scenario-name] [--style macos|windows-xp|windows-98|none] [--title "..."]`** → Re-render an existing capture without re-recording. Only works if `output/{name}/recording.webm` exists.
+- **`render [scenario-name] [--style macos|windows-xp|windows-98|macos-terminal|vscode|none] [--title "..."]`** → Re-render an existing capture without re-recording. Only works if `output/{name}/recording.webm` exists.
 - **Anything else** → Run a scenario (see [Run Flow](#run-flow) below)
 
 ---
@@ -251,7 +260,7 @@ Tell the user:
 
 After reporting results, ask the user if they'd like to adjust the video. Present these options:
 
-- **Change frame style** — re-render with `macos`, `windows-xp`, `windows-98`, or `none` (raw viewport)
+- **Change frame style** — re-render with `macos`, `windows-xp`, `windows-98`, `macos-terminal`, `vscode`, or `none` (raw viewport)
 - **Change title** — update the text shown in the frame's titlebar/tab
 - **Open Studio** — launch the DemoFlow Studio web UI at http://localhost:3274 for live preview and adjustments
 - **Keep as-is** — done
@@ -274,6 +283,138 @@ After any adjustment, report the updated file path and offer again — the user 
 
 ---
 
+## Terminal Demo Flow
+
+For CLI-based product demos (agentic coding tools, CLIs, terminal applications). Uses xterm.js rendered in Playwright connected to a real PTY via node-pty.
+
+### Detecting terminal scenarios
+
+A scenario is a terminal demo if:
+- Its `## Config` section includes `type: terminal`
+- The scenario only describes CLI commands (no URLs, no browser navigation)
+- The user explicitly asks for a terminal/CLI demo
+
+### Terminal scenario format
+
+```markdown
+# Claude Code Refactoring Demo
+
+## Config
+type: terminal
+shell: /bin/zsh
+cwd: ~/projects/demo-app
+frame: macos-terminal
+typing_speed: 40ms
+theme: dark-plus
+
+## Steps
+
+[require: node npx]
+[hide]
+cd ~/projects/demo-app && git checkout demo-branch
+[show]
+
+1. Show the project: `ls -la`
+2. [pause: 2s]
+3. Show the code: `cat server.ts`
+4. [pause: 3s]
+5. Run Claude Code: `npx claude "refactor server.ts to use async/await"`
+6. [wait-for: /✓|Done/ timeout: 120s]
+7. Show result: `cat server.ts`
+8. [pause: 3s]
+9. Run tests: `npm test`
+10. [wait-for: "passing" timeout: 30s]
+```
+
+### Terminal directives
+
+| Directive | Generated Code |
+|-----------|---------------|
+| `` `command` `` | `await session.exec('command')` |
+| `[type: "text"]` | `await session.type('text')` |
+| `[type@100ms: "text"]` | `await session.type('text', { delay: 100 })` |
+| `[enter]` | `await session.press('Enter')` |
+| `[tab]` | `await session.press('Tab')` |
+| `[ctrl+c]` | `await session.press('Ctrl+C')` |
+| `[pause: 3s]` | `await new Promise(r => setTimeout(r, 3000))` |
+| `[wait-for: /pattern/ timeout: 30s]` | `await session.waitForOutput(/pattern/, { timeout: 30000 })` |
+| `[wait-for-prompt timeout: 10s]` | `await session.waitForPrompt({ timeout: 10000 })` |
+| `[hide]` / `[show]` | `pauseRecording(session)` / `resumeRecording(session)` (hides setup from video) |
+| `[require: node npm]` | Check dependencies exist before running |
+| `[env: KEY=value]` | Set via `TerminalRecordingOptions.env` |
+| `[clear]` | `await session.clear()` |
+| `[screenshot: name]` | `await page.screenshot({ path: ... })` |
+| `[prompt: "message"]` | `await requestInput(outputDir, 'message', { session })` |
+
+### Terminal script pattern
+
+```typescript
+import { launchTerminal, finalize, pauseRecording, resumeRecording } from '../.claude/skills/demo/lib/index.js'
+
+const session = await launchTerminal({
+  outputDir: 'output/cli-demo',
+  shell: '/bin/zsh',
+  cwd: '/path/to/project',
+  desktopFrame: { style: 'macos-terminal', title: 'Terminal' },
+  theme: 'dark-plus',
+  typingSpeed: 50,
+})
+
+try {
+  // [hide] — setup commands hidden from video
+  pauseRecording(session)
+  await session.exec('cd ~/projects/demo-app')
+  resumeRecording(session)
+
+  // Visible demo steps
+  await session.exec('ls -la')
+  await new Promise(r => setTimeout(r, 2000))
+  await session.exec('npx claude "refactor server.ts"')
+  await session.waitForOutput(/Done|✓/, { timeout: 120_000 })
+  await session.exec('cat server.ts')
+  await new Promise(r => setTimeout(r, 3000))
+} catch (err) {
+  await session.page.screenshot({ path: 'output/cli-demo/error.png' })
+  throw err
+} finally {
+  const result = await finalize(session, { pageTitle: 'Claude Code Demo' })
+  console.log('Video:', result.mp4Path)
+}
+```
+
+### `launchTerminal(options) → TerminalSession`
+
+Launch a terminal session with Playwright recording: xterm.js in browser connected to real PTY.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `outputDir` | `string` | *required* | Output directory for video, screenshots. |
+| `viewport` | `{ width, height }` | `960x600` | Terminal canvas pixel size. |
+| `headed` | `boolean` | `true` | Show the browser window. |
+| `desktopFrame` | `boolean \| DesktopFrameOptions` | `true` (macos-terminal) | Desktop frame style. |
+| `shell` | `string` | `$SHELL` or `/bin/zsh` | Shell to spawn. |
+| `cwd` | `string` | `process.cwd()` | Working directory for PTY. |
+| `env` | `Record<string, string>` | `{}` | Extra environment variables. |
+| `theme` | `string \| TerminalTheme` | `'dark-plus'` | Color theme: `'dark-plus'`, `'dracula'`, `'monokai'`, or custom object. |
+| `fontSize` | `number` | `14` | Font size in px. |
+| `fontFamily` | `string` | `'Menlo, Monaco, monospace'` | Font family. |
+| `typingSpeed` | `number` | `50` | Default ms delay per character. |
+
+### TerminalSession methods
+
+| Method | Description |
+|--------|-------------|
+| `type(text, { delay? })` | Type text character-by-character with visual delay. |
+| `press(key)` | Send keystroke: `'Enter'`, `'Tab'`, `'Ctrl+C'`, `'Up'`, `'Down'`, etc. |
+| `exec(command, { timeout? })` | Type command + Enter + wait for prompt to return. |
+| `waitForOutput(pattern, { timeout? })` | Wait for regex/string to appear in terminal buffer. Default timeout: 30s. |
+| `waitForPrompt({ timeout? })` | Wait for shell prompt to return (command finished). Default timeout: 30s. |
+| `clear()` | Clear the terminal screen. |
+
+The session also has `browser`, `context`, `page`, `outputDir` like `RecordingSession`. Use `pauseRecording(session)` / `resumeRecording(session)` for pause trimming. Pass to `finalize(session, { pageTitle: '...' })` at the end.
+
+---
+
 ## Recording Library Reference
 
 All functions are exported from the skill lib at `.claude/skills/demo/lib/index.js`.
@@ -293,9 +434,11 @@ Launch a Chromium browser with full recording: HAR capture, video, and click vis
 
 Returns a `RecordingSession` with `browser`, `context`, `page`, and `outputDir`.
 
-### `finalize(session) → RecordingResult`
+### `finalize(session, overrides?) → RecordingResult`
 
 Close the browser, save a capture manifest, convert video to MP4, and apply desktop frame compositing. **Must be called in a finally block** — skipping this loses the HAR and video.
+
+Optional `overrides`: `{ pageTitle?: string, pageUrl?: string }` — use to set meaningful metadata for terminal sessions (which otherwise show `localhost:XXXXX`).
 
 Returns:
 | Field | Type | Description |
@@ -312,7 +455,7 @@ Pipeline: close browser → rename WebM → **save manifest.json** (git hash, vi
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `frameStyle` | `'macos' \| 'windows-xp' \| 'windows-98' \| 'none'` | `'macos'` | Frame style. `'none'` produces raw viewport video. |
+| `frameStyle` | `'macos' \| 'windows-xp' \| 'windows-98' \| 'macos-terminal' \| 'vscode' \| 'none'` | `'macos'` | Frame style. `'none'` produces raw viewport video. |
 | `title` | `string` | manifest page title | Window title / tab text. |
 | `url` | `string` | manifest page URL | Address bar URL (XP style). |
 | `resolution` | `{ width, height }` | `1920x1080` | Desktop resolution for the frame. |
@@ -381,6 +524,8 @@ Pass to `launchWithRecording({ desktopFrame: ... })`:
 | `{ style: 'macos' }` | macOS Sonoma with traffic lights and tab |
 | `{ style: 'windows-xp' }` | Windows XP with IE chrome, taskbar, Start button (uses XP.css) |
 | `{ style: 'windows-98' }` | Windows 98 with classic grey chrome (uses 98.css) |
+| `{ style: 'macos-terminal' }` | macOS Terminal.app style — dark titlebar, traffic lights, no address bar |
+| `{ style: 'vscode' }` | VS Code integrated terminal — dark chrome, tab bar, blue status bar |
 | `{ title: 'My App' }` | Override the tab/titlebar text (default: page title at finalize) |
 | `{ resolution: { width: 1920, height: 1080 } }` | Desktop resolution (default: 1920x1080) |
 | `{ windowOffsetY: -50 }` | Shift window up/down from center (negative = up) |
@@ -405,6 +550,19 @@ Pass to `launchWithRecording({ desktopFrame: ... })`:
 - Classic grey window chrome with beveled edges
 - Address bar with URL, status bar
 - Grey taskbar with Start button
+
+**macOS Terminal:**
+- Same purple/blue gradient wallpaper as macOS browser frame
+- Dark titlebar (#3c3c3c) with traffic lights
+- Centered title text (shell name or custom)
+- No address bar, no tab — clean terminal window look
+- Best for CLI/terminal demos
+
+**VS Code:**
+- Dark chrome (#1f1f1f) with traffic lights
+- Tab bar with terminal tab icon (`>_`)
+- Blue status bar with branch name + line/col info
+- Best for agentic coding tool demos shown in IDE context
 
 ### How it works
 
@@ -493,6 +651,8 @@ When you see these in the scenario, handle them in the generated script:
 5. **Set viewport to match your target audience.** 1280x720 is a safe default. Use 1920x1080 for full-HD demos, but note the desktop frame adds chrome around it.
 6. **The desktop frame title is captured at finalize.** Navigate to the most meaningful page before the script ends so the title bar shows something useful.
 7. **Use `desktopFrame: { style: 'windows-xp' }` or `'windows-98'` for retro frames.** XP uses authentic XP.css styling with IE chrome and taskbar. 98 gives classic grey beveled chrome. Both use the XP.css library for faithful rendering.
+8. **Use `macos-terminal` or `vscode` frame for terminal demos.** `macos-terminal` gives a clean Terminal.app look; `vscode` wraps the terminal in VS Code chrome — great for agentic coding demos.
+9. **For terminal demos, pass `{ pageTitle: '...' }` to `finalize()`.** Terminal sessions run at `localhost:XXXXX` so the default page title/URL are meaningless.
 8. **Check for ffmpeg before running.** Without it, you get HAR + WebM but no MP4 and no desktop frame compositing.
 
 ---
@@ -515,3 +675,5 @@ When the run finishes, report status:
 - `/demo workspace-switching` — runs `.demoflow/scenarios/workspace-switching.md` with its default target
 - `/demo workspace-switching --target production` — override to use production target
 - `/demo "log in and navigate to the dashboard"` — generates from inline description using default target
+- `/demo "run npm install then npm test and show the output"` — terminal demo from inline description (auto-detected: no URLs)
+- `/demo cli-onboarding` — runs a terminal scenario from `.demoflow/scenarios/cli-onboarding.md` (detected via `type: terminal` in Config)

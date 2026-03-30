@@ -30,6 +30,50 @@ export const CLICK_VIS_SCRIPT = `
   }, true);
 `;
 /**
+ * Keystroke visualization script for terminal recordings.
+ * Shows typed keys in a floating overlay at bottom-right, fades after 1.5s.
+ * Embedded in terminal-page.ts by default; exported here for custom pages.
+ */
+export const KEYSTROKE_VIS_SCRIPT = `
+  (function() {
+    let overlay = document.getElementById('keystroke-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'keystroke-overlay';
+      Object.assign(overlay.style, {
+        position: 'fixed', bottom: '16px', right: '16px',
+        fontFamily: 'Menlo, Monaco, monospace', fontSize: '13px',
+        color: 'rgba(255,255,255,0.85)', background: 'rgba(0,0,0,0.55)',
+        borderRadius: '6px', padding: '4px 10px', pointerEvents: 'none',
+        zIndex: '999999', opacity: '0', transition: 'opacity 0.3s ease-out',
+        maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      });
+      document.body.appendChild(overlay);
+    }
+    let clearTimer = null;
+    let keyBuffer = '';
+    function showKeystroke(text) {
+      keyBuffer += text;
+      overlay.textContent = keyBuffer;
+      overlay.style.opacity = '1';
+      if (clearTimer) clearTimeout(clearTimer);
+      clearTimer = setTimeout(() => {
+        overlay.style.opacity = '0';
+        setTimeout(() => { keyBuffer = ''; }, 300);
+      }, 1500);
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') showKeystroke('\\u23CE');
+      else if (e.key === 'Tab') showKeystroke('\\u21E5');
+      else if (e.key === 'Backspace') showKeystroke('\\u232B');
+      else if (e.key === 'Escape') showKeystroke('Esc');
+      else if (e.ctrlKey && e.key.length === 1) showKeystroke('Ctrl+' + e.key.toUpperCase());
+      else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) showKeystroke(e.key);
+    }, true);
+  })();
+`;
+/**
  * Convert a webm video to mp4 using ffmpeg.
  * Requires ffmpeg to be installed and on PATH.
  */

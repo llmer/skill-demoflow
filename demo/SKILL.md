@@ -172,7 +172,7 @@ If `isCaptureValid()` returns true, skip to rendering. This avoids expensive bro
 
 ### Step 3: Generate a step-based script
 
-Write a script to `scripts/demo-run.ts` that uses `runSteps()` with a declarative `Step[]` array. **Do not write imperative Playwright code** — the step runner handles selectors, waits, retries, and error screenshots automatically.
+Write a script to `scripts/demo-{scenario-name}.ts` (e.g. `demo-full-workflow.ts`) that uses `runSteps()` with a declarative `Step[]` array. **Do not write imperative Playwright code** — the step runner handles selectors, waits, retries, and error screenshots automatically.
 
 - Imports from the skill lib (path relative to `scripts/`):
   ```typescript
@@ -287,7 +287,7 @@ main()
 
 ### Step 4: Run the script
 
-1. Run the script in the background: `npx tsx scripts/demo-run.ts`
+1. Run the script in the background: `npx tsx scripts/demo-{scenario-name}.ts`
 2. Monitor for the input signal file: poll `output/{name}/.waiting-for-input`
 3. When the signal appears, read its contents (the prompt message) and ask the user for the value
 4. When the user responds, write their answer to `output/{name}/.input-value`

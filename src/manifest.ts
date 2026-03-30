@@ -17,6 +17,8 @@ export interface CaptureInfo {
   pageUrl?: string
   pageTitle?: string
   timestamp: string
+  /** Device preset key used for recording, e.g. 'iphone-15-pro' */
+  device?: string
   /** Terminal recording metadata (absent for browser recordings). */
   terminal?: {
     shell: string
@@ -25,7 +27,7 @@ export interface CaptureInfo {
 }
 
 export interface RenderInfo {
-  frameStyle: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'none'
+  frameStyle: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'ios' | 'none'
   title?: string
   url?: string
   resolution: { width: number; height: number }

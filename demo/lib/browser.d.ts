@@ -14,7 +14,9 @@ export interface RecordingOptions {
     slowMo?: number;
     /** Ignore HTTPS errors (default true). */
     ignoreHTTPSErrors?: boolean;
-    /** Wrap video in a desktop frame. Default: true (macOS style). Pass false to disable. */
+    /** Device preset for mobile emulation (e.g. 'iphone-15-pro'). Sets viewport, isMobile, hasTouch, userAgent. Overrides viewport. */
+    device?: string;
+    /** Wrap video in a frame. Default: true (macOS style). Pass false to disable. */
     desktopFrame?: boolean | DesktopFrameOptions;
     /** Path to scenario file — stored in manifest for cache invalidation. */
     scenarioPath?: string;
@@ -45,6 +47,8 @@ export interface RecordingSession {
         width: number;
         height: number;
     };
+    /** @internal device preset key */
+    _device?: string;
     /** @internal scenario file path for manifest hashing */
     _scenarioPath?: string;
     /** @internal target file path for manifest hashing */
@@ -57,7 +61,7 @@ export interface RecordingResult {
 }
 export interface RenderOptions {
     /** Frame style. 'none' disables frame. Default: 'macos' */
-    frameStyle?: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'none';
+    frameStyle?: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'ios' | 'none';
     /** Title for titlebar/tab. Falls back to captured page title. */
     title?: string;
     /** URL for address bar (XP/98 style). Falls back to captured page URL. */

@@ -20,7 +20,7 @@ export interface FrameComponents {
 }
 export interface DesktopFrameOptions {
     /** OS style. Default: 'macos' */
-    style?: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode';
+    style?: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'ios';
     /** Desktop resolution. Default: 1920x1080 */
     resolution?: {
         width: number;

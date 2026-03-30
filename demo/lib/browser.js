@@ -4,6 +4,7 @@ import { join } from 'path';
 import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim } from './recorder.js';
 import { renderFrame } from './frame.js';
 import { getGitState, getLibHash, hashFile, readManifest, writeManifest } from './manifest.js';
+import { getDevicePreset } from './devices.js';
 /**
  * Re-render an existing capture to MP4 with optional frame compositing.
  * Reads viewport and pause data from the manifest (or uses defaults).
@@ -81,10 +82,24 @@ function updateRenderManifest(outputDir, manifest, options) {
  * - Click visualization (red dot on every click)
  */
 export async function launchWithRecording(options) {
-    const { outputDir, viewport = { width: 1280, height: 720 }, headed = true, slowMo = 100, ignoreHTTPSErrors = true, desktopFrame = true, scenarioPath, targetPath, } = options;
-    const frameOptions = desktopFrame === false ? null :
-        desktopFrame === true ? {} :
-            desktopFrame;
+    const { outputDir, headed = true, slowMo = 100, ignoreHTTPSErrors = true, desktopFrame = true, scenarioPath, targetPath, } = options;
+    // Resolve device preset (overrides viewport)
+    const preset = options.device ? getDevicePreset(options.device) : undefined;
+    const viewport = preset?.viewport ?? options.viewport ?? { width: 1280, height: 720 };
+    // Frame defaults: use iOS frame for device presets unless explicitly overridden
+    let frameOptions;
+    if (desktopFrame === false) {
+        frameOptions = null;
+    }
+    else if (desktopFrame === true && preset) {
+        frameOptions = { style: 'ios', resolution: { width: 1080, height: 1920 } };
+    }
+    else if (desktopFrame === true) {
+        frameOptions = {};
+    }
+    else {
+        frameOptions = desktopFrame;
+    }
     mkdirSync(outputDir, { recursive: true });
     const browser = await chromium.launch({
         headless: !headed,
@@ -101,6 +116,11 @@ export async function launchWithRecording(options) {
         },
         ignoreHTTPSErrors,
         viewport,
+        ...(preset ? {
+            isMobile: preset.isMobile,
+            hasTouch: preset.hasTouch,
+            userAgent: preset.userAgent,
+        } : {}),
     });
     const page = await context.newPage();
     await page.addInitScript(CLICK_VIS_SCRIPT);
@@ -108,6 +128,7 @@ export async function launchWithRecording(options) {
         browser, context, page, outputDir,
         _startTime: Date.now(), _pauses: [], _pauseStart: null,
         _frameOptions: frameOptions, _viewport: viewport,
+        _device: options.device,
         _scenarioPath: scenarioPath, _targetPath: targetPath,
     };
 }
@@ -181,6 +202,7 @@ export async function finalize(session, overrides) {
                 pageUrl,
                 pageTitle,
                 timestamp: new Date().toISOString(),
+                ...(session._device ? { device: session._device } : {}),
                 ...(session._scenarioPath ? { scenarioHash: hashFile(session._scenarioPath) } : {}),
                 ...(session._targetPath ? { targetHash: hashFile(session._targetPath) } : {}),
             },

@@ -4,6 +4,7 @@ import { join } from 'path'
 import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim } from './recorder.js'
 import { renderFrame, type DesktopFrameOptions, type FrameComponents } from './frame.js'
 import { getGitState, getLibHash, hashFile, readManifest, writeManifest, type Manifest } from './manifest.js'
+import { getDevicePreset } from './devices.js'
 
 export interface RecordingOptions {
   /** Output directory for HAR, video, screenshots. Created if missing. */
@@ -16,7 +17,9 @@ export interface RecordingOptions {
   slowMo?: number
   /** Ignore HTTPS errors (default true). */
   ignoreHTTPSErrors?: boolean
-  /** Wrap video in a desktop frame. Default: true (macOS style). Pass false to disable. */
+  /** Device preset for mobile emulation (e.g. 'iphone-15-pro'). Sets viewport, isMobile, hasTouch, userAgent. Overrides viewport. */
+  device?: string
+  /** Wrap video in a frame. Default: true (macOS style). Pass false to disable. */
   desktopFrame?: boolean | DesktopFrameOptions
   /** Path to scenario file — stored in manifest for cache invalidation. */
   scenarioPath?: string
@@ -46,6 +49,8 @@ export interface RecordingSession {
   _frameOptions: DesktopFrameOptions | null
   /** @internal viewport used for recording */
   _viewport: { width: number; height: number }
+  /** @internal device preset key */
+  _device?: string
   /** @internal scenario file path for manifest hashing */
   _scenarioPath?: string
   /** @internal target file path for manifest hashing */
@@ -62,7 +67,7 @@ export interface RecordingResult {
 
 export interface RenderOptions {
   /** Frame style. 'none' disables frame. Default: 'macos' */
-  frameStyle?: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'none'
+  frameStyle?: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'ios' | 'none'
   /** Title for titlebar/tab. Falls back to captured page title. */
   title?: string
   /** URL for address bar (XP/98 style). Falls back to captured page URL. */
@@ -167,7 +172,6 @@ export async function launchWithRecording(
 ): Promise<RecordingSession> {
   const {
     outputDir,
-    viewport = { width: 1280, height: 720 },
     headed = true,
     slowMo = 100,
     ignoreHTTPSErrors = true,
@@ -176,10 +180,21 @@ export async function launchWithRecording(
     targetPath,
   } = options
 
-  const frameOptions: DesktopFrameOptions | null =
-    desktopFrame === false ? null :
-    desktopFrame === true ? {} :
-    desktopFrame
+  // Resolve device preset (overrides viewport)
+  const preset = options.device ? getDevicePreset(options.device) : undefined
+  const viewport = preset?.viewport ?? options.viewport ?? { width: 1280, height: 720 }
+
+  // Frame defaults: use iOS frame for device presets unless explicitly overridden
+  let frameOptions: DesktopFrameOptions | null
+  if (desktopFrame === false) {
+    frameOptions = null
+  } else if (desktopFrame === true && preset) {
+    frameOptions = { style: 'ios', resolution: { width: 1080, height: 1920 } }
+  } else if (desktopFrame === true) {
+    frameOptions = {}
+  } else {
+    frameOptions = desktopFrame
+  }
 
   mkdirSync(outputDir, { recursive: true })
 
@@ -199,6 +214,11 @@ export async function launchWithRecording(
     },
     ignoreHTTPSErrors,
     viewport,
+    ...(preset ? {
+      isMobile: preset.isMobile,
+      hasTouch: preset.hasTouch,
+      userAgent: preset.userAgent,
+    } : {}),
   })
 
   const page = await context.newPage()
@@ -208,6 +228,7 @@ export async function launchWithRecording(
     browser, context, page, outputDir,
     _startTime: Date.now(), _pauses: [], _pauseStart: null,
     _frameOptions: frameOptions, _viewport: viewport,
+    _device: options.device,
     _scenarioPath: scenarioPath, _targetPath: targetPath,
   }
 }
@@ -290,6 +311,7 @@ export async function finalize(
         pageUrl,
         pageTitle,
         timestamp: new Date().toISOString(),
+        ...(session._device ? { device: session._device } : {}),
         ...(session._scenarioPath ? { scenarioHash: hashFile(session._scenarioPath) } : {}),
         ...(session._targetPath ? { targetHash: hashFile(session._targetPath) } : {}),
       },

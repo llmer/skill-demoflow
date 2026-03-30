@@ -677,6 +677,112 @@ function vscodeFrameHtml(viewport, resolution, options) {
 </html>`;
 }
 // ---------------------------------------------------------------------------
+// iOS (iPhone)
+// ---------------------------------------------------------------------------
+const IOS_BEZEL_SIDE = 16;
+const IOS_BEZEL_TOP = 55;
+const IOS_BEZEL_BOTTOM = 35;
+const IOS_BEZEL_RADIUS = 50;
+function computeMobileLayout(viewport, resolution, padding) {
+    const bezelWidth = viewport.width + padding.side * 2;
+    const bezelHeight = viewport.height + padding.top + padding.bottom;
+    const bezelX = Math.round((resolution.width - bezelWidth) / 2);
+    const bezelY = Math.round((resolution.height - bezelHeight) / 2);
+    const contentX = bezelX + padding.side;
+    const contentY = bezelY + padding.top;
+    return { bezelX, bezelY, bezelWidth, bezelHeight, contentX, contentY };
+}
+function iosFrameHtml(viewport, resolution, options) {
+    const layout = computeMobileLayout(viewport, resolution, {
+        top: IOS_BEZEL_TOP,
+        bottom: IOS_BEZEL_BOTTOM,
+        side: IOS_BEZEL_SIDE,
+    });
+    const wallpaper = options.wallpaperColor ?? '#111111';
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: ${resolution.width}px;
+    height: ${resolution.height}px;
+    overflow: hidden;
+    background: ${wallpaper};
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  }
+
+  .phone-bezel {
+    position: absolute;
+    top: ${layout.bezelY}px;
+    left: ${layout.bezelX}px;
+    width: ${layout.bezelWidth}px;
+    height: ${layout.bezelHeight}px;
+    border-radius: ${IOS_BEZEL_RADIUS}px;
+    background: #1c1c1e;
+    border: 3px solid #2c2c2e;
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.5),
+      0 10px 30px rgba(0, 0, 0, 0.3),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+  }
+
+  .status-bar {
+    height: ${IOS_BEZEL_TOP - IOS_BEZEL_SIDE}px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 0 ${IOS_BEZEL_SIDE}px;
+  }
+
+  .dynamic-island {
+    width: 120px;
+    height: 34px;
+    background: #000;
+    border-radius: 20px;
+    margin-top: 6px;
+  }
+
+  .content-area {
+    width: ${viewport.width}px;
+    height: ${viewport.height}px;
+    background: #ffffff;
+    margin: 0 ${IOS_BEZEL_SIDE}px;
+  }
+
+  .home-indicator-area {
+    height: ${IOS_BEZEL_BOTTOM - IOS_BEZEL_SIDE}px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .home-indicator {
+    width: 134px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+  <div class="phone-bezel">
+    <div class="status-bar">
+      <div class="dynamic-island"></div>
+    </div>
+    <div class="content-area"></div>
+    <div class="home-indicator-area">
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 function styleParams(style, components) {
@@ -695,13 +801,21 @@ function styleParams(style, components) {
             return { chromeHeight: MACOS_TERMINAL_TITLE_BAR_HEIGHT, bottomEdge: MACOS_TERMINAL_BOTTOM_EDGE };
         case 'vscode':
             return { chromeHeight: VSCODE_TITLE_BAR_HEIGHT + VSCODE_TAB_BAR_HEIGHT, bottomEdge: VSCODE_BOTTOM_EDGE };
+        case 'ios':
+            return { chromeHeight: IOS_BEZEL_TOP, bottomEdge: IOS_BEZEL_BOTTOM };
         default:
             return { chromeHeight: MACOS_TITLE_BAR_HEIGHT, bottomEdge: MACOS_BOTTOM_EDGE };
     }
 }
 export function generateFrameHtml(viewport, options = {}) {
-    const resolution = options.resolution ?? { width: 1920, height: 1080 };
     const style = options.style ?? 'macos';
+    const defaultRes = style === 'ios'
+        ? { width: 1080, height: 1920 }
+        : { width: 1920, height: 1080 };
+    const resolution = options.resolution ?? defaultRes;
+    if (style === 'ios') {
+        return iosFrameHtml(viewport, resolution, options);
+    }
     if (style === 'windows-98') {
         return w98FrameHtml(viewport, resolution, options);
     }
@@ -717,8 +831,12 @@ export function generateFrameHtml(viewport, options = {}) {
     return macosFrameHtml(viewport, resolution, options);
 }
 export async function renderFrame(outputDir, viewport, options = {}) {
-    const resolution = options.resolution ?? { width: 1920, height: 1080 };
-    const html = generateFrameHtml(viewport, options);
+    const style = options.style ?? 'macos';
+    const defaultRes = style === 'ios'
+        ? { width: 1080, height: 1920 }
+        : { width: 1920, height: 1080 };
+    const resolution = options.resolution ?? defaultRes;
+    const html = generateFrameHtml(viewport, { ...options, resolution });
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({
         viewport: resolution,
@@ -728,13 +846,27 @@ export async function renderFrame(outputDir, viewport, options = {}) {
     const pngPath = join(outputDir, 'frame.png');
     await page.screenshot({ path: pngPath, type: 'png' });
     await browser.close();
-    const style = options.style ?? 'macos';
-    const { chromeHeight, bottomEdge } = styleParams(style, options.components);
-    const layout = computeLayout(viewport, resolution, chromeHeight, bottomEdge, options.windowOffsetY);
+    let contentX;
+    let contentY;
+    if (style === 'ios') {
+        const mobileLayout = computeMobileLayout(viewport, resolution, {
+            top: IOS_BEZEL_TOP,
+            bottom: IOS_BEZEL_BOTTOM,
+            side: IOS_BEZEL_SIDE,
+        });
+        contentX = mobileLayout.contentX;
+        contentY = mobileLayout.contentY;
+    }
+    else {
+        const { chromeHeight, bottomEdge } = styleParams(style, options.components);
+        const layout = computeLayout(viewport, resolution, chromeHeight, bottomEdge, options.windowOffsetY);
+        contentX = layout.contentX;
+        contentY = layout.contentY;
+    }
     return {
         pngPath,
-        contentX: layout.contentX,
-        contentY: layout.contentY,
+        contentX,
+        contentY,
         outputWidth: resolution.width,
         outputHeight: resolution.height,
     };

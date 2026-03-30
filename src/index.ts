@@ -1,3 +1,6 @@
+export { getDevicePreset, listDevicePresets, DEVICE_PRESETS } from './devices.js'
+export type { DevicePreset } from './devices.js'
+
 export { launchWithRecording, finalize, pauseRecording, resumeRecording, render } from './browser.js'
 export type { RecordingOptions, RecordingSession, RecordingResult, PauseSegment, RenderOptions, RenderResult } from './browser.js'
 
@@ -19,3 +22,6 @@ export type { Manifest, CaptureInfo, RenderInfo, CaptureValidationOptions } from
 
 export { startStudio } from './studio.js'
 export type { StudioOptions } from './studio.js'
+
+export { runSteps } from './runner.js'
+export type { Step, StepContext, RunOptions } from './runner.js'

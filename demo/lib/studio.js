@@ -507,6 +507,7 @@ function studioHtml() {
           <label><input type="radio" name="style" value="windows-98"><span>98</span></label>
           <label><input type="radio" name="style" value="macos-terminal"><span>Terminal</span></label>
           <label><input type="radio" name="style" value="vscode"><span>VS Code</span></label>
+          <label><input type="radio" name="style" value="ios"><span>iPhone</span></label>
           <label><input type="radio" name="style" value="none"><span>None</span></label>
         </div>
       </div>
@@ -647,7 +648,9 @@ async function selectRecording(name) {
     statusTextInput.value = comp.statusText ?? '';
     clockTextInput.value = comp.clockText ?? '';
   } else if (manifest?.capture) {
-    setStyle(manifest.capture.terminal ? 'macos-terminal' : 'macos');
+    const defaultStyle = manifest.capture.device ? 'ios' : manifest.capture.terminal ? 'macos-terminal' : 'macos';
+    setStyle(defaultStyle);
+    if (manifest.capture.device) resSelect.value = '1080x1920';
     titleInput.value = manifest.capture.pageTitle || '';
     urlInput.value = manifest.capture.pageUrl || '';
     resetComponents();
@@ -689,13 +692,14 @@ function toggleStyleControls() {
   const isMac = s === 'macos' || s === 'macos-terminal';
   const isTerminal = s === 'macos-terminal' || s === 'vscode';
   const isNone = s === 'none';
+  const isMobile = s === 'ios';
 
   urlGroup.style.display = isWin ? '' : 'none';
-  offsetGroup.style.display = isNone ? 'none' : '';
+  offsetGroup.style.display = (isNone || isMobile) ? 'none' : '';
   wallpaperGroup.style.display = isNone ? 'none' : '';
 
   // Component visibility toggles
-  compVisGroup.style.display = (isNone || isTerminal) ? 'none' : '';
+  compVisGroup.style.display = (isNone || isTerminal || isMobile) ? 'none' : '';
   tlToggle.style.display = (isMac && !isTerminal) ? '' : 'none';
   abToggle.style.display = isWin ? '' : 'none';
   sbToggle.style.display = isWin ? '' : 'none';
@@ -703,6 +707,21 @@ function toggleStyleControls() {
 
   // Component text overrides (XP/98 only)
   compTextGroup.style.display = isWin ? '' : 'none';
+
+  updateResolutionOptions();
+}
+
+function updateResolutionOptions() {
+  const s = getStyle();
+  const currentVal = resSelect.value;
+  if (s === 'ios') {
+    resSelect.innerHTML = '<option value="1080x1920">1080 \\u00d7 1920</option><option value="750x1334">750 \\u00d7 1334</option><option value="1290x2796">1290 \\u00d7 2796</option>';
+  } else {
+    resSelect.innerHTML = '<option value="1920x1080">1920 \\u00d7 1080</option><option value="2560x1440">2560 \\u00d7 1440</option><option value="1440x900">1440 \\u00d7 900</option><option value="1280x800">1280 \\u00d7 800</option>';
+  }
+  // Restore previous value if it exists in the new options
+  const exists = Array.from(resSelect.options).some(o => o.value === currentVal);
+  if (exists) resSelect.value = currentVal;
 }
 
 function getComponents() {

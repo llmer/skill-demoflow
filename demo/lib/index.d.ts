@@ -1,3 +1,5 @@
+export { getDevicePreset, listDevicePresets, DEVICE_PRESETS } from './devices.js';
+export type { DevicePreset } from './devices.js';
 export { launchWithRecording, finalize, pauseRecording, resumeRecording, render } from './browser.js';
 export type { RecordingOptions, RecordingSession, RecordingResult, PauseSegment, RenderOptions, RenderResult } from './browser.js';
 export { launchTerminal } from './terminal.js';
@@ -12,4 +14,6 @@ export { readManifest, writeManifest, getGitState, getLibHash, hashFile, isCaptu
 export type { Manifest, CaptureInfo, RenderInfo, CaptureValidationOptions } from './manifest.js';
 export { startStudio } from './studio.js';
 export type { StudioOptions } from './studio.js';
+export { runSteps } from './runner.js';
+export type { Step, StepContext, RunOptions } from './runner.js';
 //# sourceMappingURL=index.d.ts.map

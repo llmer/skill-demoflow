@@ -1,10 +1,14 @@
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim } from './recorder.js'
+import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim, convertToMp4WithZoom, convertToMp4WithSpeed, convertToGif } from './recorder.js'
 import { renderFrame, type DesktopFrameOptions, type FrameComponents } from './frame.js'
 import { getGitState, getLibHash, hashFile, readManifest, writeManifest, type Manifest } from './manifest.js'
 import { getDevicePreset } from './devices.js'
+import { generateAutoZoomRegions } from './zoom.js'
+import { CURSOR_SAMPLE_SCRIPT, collectCursorSamples, saveCursorTelemetry } from './cursor.js'
+import { renderWithAnnotations } from './render-page.js'
+import type { ElementHit, ZoomRegion, SpeedRegion, Annotation, ScenarioEffects, GifOptions, CursorPoint } from './types.js'
 
 export interface RecordingOptions {
   /** Output directory for HAR, video, screenshots. Created if missing. */
@@ -25,6 +29,8 @@ export interface RecordingOptions {
   scenarioPath?: string
   /** Path to target file — stored in manifest for cache invalidation. */
   targetPath?: string
+  /** Scenario-level effect configuration (auto-zoom, GIF export, etc.) */
+  effects?: ScenarioEffects
 }
 
 export interface PauseSegment {
@@ -55,6 +61,16 @@ export interface RecordingSession {
   _scenarioPath?: string
   /** @internal target file path for manifest hashing */
   _targetPath?: string
+  /** @internal element bounding boxes captured during recording (for auto-zoom) */
+  _elementHits: ElementHit[]
+  /** @internal explicitly defined zoom regions */
+  _zoomRegions: ZoomRegion[]
+  /** @internal speed regions for variable playback speed */
+  _speedRegions: SpeedRegion[]
+  /** @internal annotations from step directives */
+  _annotations: Annotation[]
+  /** @internal scenario-level effect configuration */
+  _effects: ScenarioEffects
 }
 
 export interface RecordingResult {
@@ -80,6 +96,16 @@ export interface RenderOptions {
   wallpaperColor?: string
   /** Per-component visibility and text overrides. */
   components?: FrameComponents
+  /** Zoom regions to apply. Falls back to manifest data. */
+  zoomRegions?: ZoomRegion[]
+  /** Speed regions to apply. Falls back to manifest data. */
+  speedRegions?: SpeedRegion[]
+  /** Annotations to draw on frames. Falls back to manifest data. */
+  annotations?: Annotation[]
+  /** Export format. Default: 'mp4' */
+  exportFormat?: 'mp4' | 'gif'
+  /** GIF export options (when exportFormat is 'gif'). */
+  gifOptions?: GifOptions
 }
 
 export interface RenderResult {
@@ -95,6 +121,9 @@ export async function render(outputDir: string, options: RenderOptions = {}): Pr
   const manifest = readManifest(outputDir)
   const viewport = manifest?.capture?.viewport ?? { width: 1280, height: 720 }
   const pauses = manifest?.capture?.pauses ?? []
+  const zoomRegions = options.zoomRegions ?? manifest?.capture?.zoomRegions ?? []
+  const speedRegions = options.speedRegions ?? manifest?.capture?.speedRegions ?? []
+  const annotations = options.annotations ?? manifest?.capture?.annotations ?? []
 
   const webmPath = join(outputDir, 'recording.webm')
   if (!existsSync(webmPath)) {
@@ -103,9 +132,15 @@ export async function render(outputDir: string, options: RenderOptions = {}): Pr
 
   const mp4Path = join(outputDir, 'recording.mp4')
 
-  // Step 1: WebM → MP4 (with pause trimming)
+  // Step 1: WebM → MP4 (with pause trimming + zoom + speed)
   try {
-    if (pauses.length > 0) {
+    const pauseArg = pauses.length > 0 ? pauses : undefined
+    if (zoomRegions.length > 0) {
+      // TODO: combine zoom + speed in a single pass when both are present
+      convertToMp4WithZoom(webmPath, mp4Path, zoomRegions, viewport, pauseArg)
+    } else if (speedRegions.length > 0) {
+      convertToMp4WithSpeed(webmPath, mp4Path, speedRegions, pauseArg)
+    } else if (pauses.length > 0) {
       convertToMp4WithTrim(webmPath, mp4Path, pauses)
     } else {
       convertToMp4(webmPath, mp4Path)
@@ -115,7 +150,27 @@ export async function render(outputDir: string, options: RenderOptions = {}): Pr
     return { mp4Path: null }
   }
 
-  // Step 2: Frame compositing
+  // Step 2: Annotation rendering (frame-by-frame pipeline if annotations present)
+  if (annotations.length > 0 && existsSync(mp4Path)) {
+    try {
+      const annotatedPath = join(outputDir, 'recording-annotated.mp4')
+      await renderWithAnnotations({
+        inputPath: mp4Path,
+        outputPath: annotatedPath,
+        width: viewport.width,
+        height: viewport.height,
+        // Pass zoom regions only if they weren't already applied in step 1
+        zoomRegions: zoomRegions.length > 0 ? undefined : undefined,
+        annotations,
+      })
+      unlinkSync(mp4Path)
+      renameSync(annotatedPath, mp4Path)
+    } catch {
+      // Annotation rendering failed — keep the MP4 without annotations
+    }
+  }
+
+  // Step 3: Frame compositing
   const frameStyle = options.frameStyle ?? 'macos'
   if (frameStyle !== 'none') {
     try {
@@ -140,6 +195,17 @@ export async function render(outputDir: string, options: RenderOptions = {}): Pr
     }
   }
 
+  // Step 4: GIF export (optional)
+  const exportFormat = options.exportFormat ?? 'mp4'
+  if (exportFormat === 'gif' && existsSync(mp4Path)) {
+    try {
+      const gifPath = join(outputDir, 'recording.gif')
+      convertToGif(mp4Path, gifPath, options.gifOptions)
+    } catch {
+      // GIF export failed — MP4 still available
+    }
+  }
+
   updateRenderManifest(outputDir, manifest, options)
   return { mp4Path }
 }
@@ -155,6 +221,11 @@ function updateRenderManifest(outputDir: string, manifest: Manifest | null, opti
     wallpaperColor: options.wallpaperColor,
     components: options.components,
     timestamp: new Date().toISOString(),
+    ...(options.zoomRegions ? { zoomRegions: options.zoomRegions } : {}),
+    ...(options.speedRegions ? { speedRegions: options.speedRegions } : {}),
+    ...(options.annotations ? { annotations: options.annotations } : {}),
+    ...(options.exportFormat ? { exportFormat: options.exportFormat } : {}),
+    ...(options.gifOptions ? { gifOptions: options.gifOptions } : {}),
   }
   writeManifest(outputDir, manifest)
 }
@@ -178,6 +249,7 @@ export async function launchWithRecording(
     desktopFrame = true,
     scenarioPath,
     targetPath,
+    effects = {},
   } = options
 
   // Resolve device preset (overrides viewport)
@@ -223,6 +295,9 @@ export async function launchWithRecording(
 
   const page = await context.newPage()
   await page.addInitScript(CLICK_VIS_SCRIPT)
+  if (effects.cursorTelemetry) {
+    await page.addInitScript(CURSOR_SAMPLE_SCRIPT)
+  }
 
   return {
     browser, context, page, outputDir,
@@ -230,6 +305,7 @@ export async function launchWithRecording(
     _frameOptions: frameOptions, _viewport: viewport,
     _device: options.device,
     _scenarioPath: scenarioPath, _targetPath: targetPath,
+    _elementHits: [], _zoomRegions: [], _speedRegions: [], _annotations: [], _effects: effects,
   }
 }
 
@@ -279,6 +355,12 @@ export async function finalize(
     // Page may already be closed
   }
 
+  // Collect cursor telemetry before closing
+  let cursorSamples: CursorPoint[] = []
+  if (session._effects.cursorTelemetry) {
+    cursorSamples = await collectCursorSamples(page)
+  }
+
   // Apply overrides (e.g. terminal sessions provide meaningful titles)
   if (overrides?.pageTitle) pageTitle = overrides.pageTitle
   if (overrides?.pageUrl) pageUrl = overrides.pageUrl
@@ -299,6 +381,19 @@ export async function finalize(
       renameSync(originalWebm, webmPath)
     }
 
+    // Generate auto-zoom regions from element hits
+    let zoomRegions = session._zoomRegions
+    const autoZoom = session._effects.autoZoom
+    if (autoZoom && session._elementHits.length > 0) {
+      const autoOpts = typeof autoZoom === 'object' ? autoZoom : {}
+      const autoRegions = generateAutoZoomRegions(
+        session._elementHits,
+        session._viewport,
+        autoOpts,
+      )
+      zoomRegions = [...zoomRegions, ...autoRegions]
+    }
+
     // Save manifest with capture info
     const gitState = getGitState()
     const manifest: Manifest = {
@@ -314,20 +409,37 @@ export async function finalize(
         ...(session._device ? { device: session._device } : {}),
         ...(session._scenarioPath ? { scenarioHash: hashFile(session._scenarioPath) } : {}),
         ...(session._targetPath ? { targetHash: hashFile(session._targetPath) } : {}),
+        ...(zoomRegions.length > 0 ? { zoomRegions } : {}),
+        ...(session._elementHits.length > 0 ? { elementHitmap: session._elementHits } : {}),
+        ...(session._speedRegions.length > 0 ? { speedRegions: session._speedRegions } : {}),
+        ...(session._annotations.length > 0 ? { annotations: session._annotations } : {}),
+        ...(cursorSamples.length > 0 ? { cursorTelemetryPath: 'cursor.json' } : {}),
       },
     }
     writeManifest(outputDir, manifest)
+
+    // Save cursor telemetry
+    if (cursorSamples.length > 0) {
+      saveCursorTelemetry(outputDir, cursorSamples)
+    }
 
     // Render: convert to MP4 + frame composite
     const frameStyle = session._frameOptions === null
       ? 'none' as const
       : (session._frameOptions.style ?? 'macos') as Exclude<RenderOptions['frameStyle'], 'none' | undefined>
 
+    // Resolve GIF export config from effects
+    const gifConfig = session._effects.gif
+    const exportFormat = gifConfig ? 'gif' as const : undefined
+    const gifOptions = typeof gifConfig === 'object' ? gifConfig : undefined
+
     const renderResult = await render(outputDir, {
       frameStyle,
       title: session._frameOptions?.title ?? pageTitle,
       url: session._frameOptions?.url ?? pageUrl,
       resolution: session._frameOptions?.resolution,
+      ...(exportFormat ? { exportFormat } : {}),
+      ...(gifOptions ? { gifOptions } : {}),
     })
     mp4Path = renderResult.mp4Path
   }

@@ -1,34 +1,68 @@
 import type { Page } from '@playwright/test';
 import type { RecordingSession } from './browser.js';
+import type { ZoomDepth, PlaybackSpeed, ArrowDirection } from './types.js';
+/** Step-level zoom directive. 'auto' zooms to the interacted element. */
+type ZoomDirective = ZoomDepth | 'auto';
+/** Step-level annotation directive. */
+interface StepAnnotation {
+    text?: string;
+    arrow?: ArrowDirection;
+    position?: 'above' | 'below' | 'left' | 'right' | {
+        x: number;
+        y: number;
+    };
+    style?: {
+        color?: string;
+        backgroundColor?: string;
+        fontSize?: number;
+        fontWeight?: 'normal' | 'bold';
+    };
+}
 export type Step = {
     action: 'navigate';
     url: string;
     waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
     description?: string;
+    zoom?: ZoomDirective;
+    speed?: PlaybackSpeed;
+    annotation?: StepAnnotation;
 } | {
     action: 'click';
     target: string;
     description?: string;
+    zoom?: ZoomDirective;
+    speed?: PlaybackSpeed;
+    annotation?: StepAnnotation;
 } | {
     action: 'fill';
     target: string;
     value: string;
     clear?: boolean;
     description?: string;
+    zoom?: ZoomDirective;
+    speed?: PlaybackSpeed;
+    annotation?: StepAnnotation;
 } | {
     action: 'select';
     target: string;
     value: string;
     description?: string;
+    zoom?: ZoomDirective;
+    speed?: PlaybackSpeed;
+    annotation?: StepAnnotation;
 } | {
     action: 'press';
     key: string;
     description?: string;
+    zoom?: ZoomDirective;
+    speed?: PlaybackSpeed;
+    annotation?: StepAnnotation;
 } | {
     action: 'wait';
     ms?: number;
     for?: string;
     description?: string;
+    speed?: PlaybackSpeed;
 } | {
     action: 'assert';
     target: string;
@@ -87,4 +121,5 @@ export interface RunOptions {
 export declare function runSteps(session: RecordingSession, steps: Step[], options?: RunOptions): Promise<{
     vars: Record<string, string>;
 }>;
+export {};
 //# sourceMappingURL=runner.d.ts.map

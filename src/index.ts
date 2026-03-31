@@ -7,7 +7,7 @@ export type { RecordingOptions, RecordingSession, RecordingResult, PauseSegment,
 export { launchTerminal } from './terminal.js'
 export type { TerminalRecordingOptions, TerminalSession } from './terminal.js'
 
-export { CLICK_VIS_SCRIPT, KEYSTROKE_VIS_SCRIPT, convertToMp4, compositeWithFrame } from './recorder.js'
+export { CLICK_VIS_SCRIPT, KEYSTROKE_VIS_SCRIPT, convertToMp4, compositeWithFrame, convertToGif, convertToMp4WithZoom, convertToMp4WithSpeed } from './recorder.js'
 
 export { generateFrameHtml, renderFrame } from './frame.js'
 export type { DesktopFrameOptions, FrameRenderResult, FrameComponents } from './frame.js'
@@ -25,3 +25,22 @@ export type { StudioOptions } from './studio.js'
 
 export { runSteps } from './runner.js'
 export type { Step, StepContext, RunOptions } from './runner.js'
+
+export { computeZoomAtTime, findDominantRegion, generateAutoZoomRegions, clampFocusToScale, computeRegionStrength } from './zoom.js'
+export type { ZoomTransform, DominantResult } from './zoom.js'
+
+export { CURSOR_SAMPLE_SCRIPT, collectCursorSamples, saveCursorTelemetry, loadCursorTelemetry, detectDwellCandidates, suggestZoomRegions } from './cursor.js'
+export type { DwellCandidate, DwellOptions } from './cursor.js'
+
+export { generateAnnotationDrawCode, generateAnnotationsDrawCode, getVisibleAnnotations } from './annotations.js'
+
+export { renderWithAnnotations } from './render-page.js'
+export type { RenderPageOptions } from './render-page.js'
+
+export type {
+  ZoomDepth, ZoomFocus, ZoomRegion,
+  PlaybackSpeed, SpeedRegion,
+  AnnotationType, ArrowDirection, Annotation,
+  CursorPoint, ElementHit,
+  ScenarioEffects, GifOptions,
+} from './types.js'

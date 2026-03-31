@@ -1,5 +1,6 @@
 import type { PauseSegment } from './browser.js';
 import type { FrameComponents } from './frame.js';
+import type { ZoomRegion, ElementHit, SpeedRegion, Annotation, GifOptions } from './types.js';
 export interface CaptureInfo {
     commitHash: string;
     dirty: boolean;
@@ -21,6 +22,16 @@ export interface CaptureInfo {
         shell: string;
         cwd: string;
     };
+    /** Zoom regions derived from step metadata (auto-zoom) */
+    zoomRegions?: ZoomRegion[];
+    /** Element bounding boxes captured during recording (for auto-zoom) */
+    elementHitmap?: ElementHit[];
+    /** Speed regions derived from step metadata */
+    speedRegions?: SpeedRegion[];
+    /** Annotations derived from step metadata */
+    annotations?: Annotation[];
+    /** Path to cursor telemetry JSON file (relative to output dir) */
+    cursorTelemetryPath?: string;
 }
 export interface RenderInfo {
     frameStyle: 'macos' | 'windows-xp' | 'windows-98' | 'macos-terminal' | 'vscode' | 'ios' | 'none';
@@ -34,6 +45,16 @@ export interface RenderInfo {
     wallpaperColor?: string;
     components?: FrameComponents;
     timestamp: string;
+    /** Override or additional zoom regions from Studio */
+    zoomRegions?: ZoomRegion[];
+    /** Speed regions */
+    speedRegions?: SpeedRegion[];
+    /** Annotations */
+    annotations?: Annotation[];
+    /** Export format */
+    exportFormat?: 'mp4' | 'gif';
+    /** GIF export options */
+    gifOptions?: GifOptions;
 }
 export interface Manifest {
     capture: CaptureInfo;

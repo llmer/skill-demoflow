@@ -88,11 +88,13 @@ async function executeStep(ctx, raw, opts) {
         }
         case 'click': {
             const loc = await resolveTarget(page, step.target, timeout);
+            await captureElementHit(ctx, loc, step);
             await loc.click({ timeout });
             break;
         }
         case 'fill': {
             const loc = await resolveTarget(page, step.target, timeout);
+            await captureElementHit(ctx, loc, step);
             if (step.clear !== false)
                 await loc.clear().catch(() => { });
             await loc.fill(step.value);
@@ -100,6 +102,7 @@ async function executeStep(ctx, raw, opts) {
         }
         case 'select': {
             const loc = await resolveTarget(page, step.target, timeout);
+            await captureElementHit(ctx, loc, step);
             await loc.selectOption(step.value);
             break;
         }
@@ -170,6 +173,50 @@ async function executeStep(ctx, raw, opts) {
         }
     }
 }
+// ── Annotation position resolution ─────────────────────────────────────────
+function resolveAnnotationPosition(ann, lastHit, viewport) {
+    // Explicit coordinates
+    if (ann.position && typeof ann.position === 'object' && 'x' in ann.position) {
+        return { x: ann.position.x, y: ann.position.y };
+    }
+    // Position relative to last interacted element
+    if (lastHit) {
+        const elCx = (lastHit.bbox.x + lastHit.bbox.width / 2) / viewport.width;
+        const elCy = (lastHit.bbox.y + lastHit.bbox.height / 2) / viewport.height;
+        const offset = 0.06; // 6% of viewport
+        switch (ann.position) {
+            case 'above': return { x: elCx - 0.075, y: elCy - offset - 0.04 };
+            case 'below': return { x: elCx - 0.075, y: elCy + offset };
+            case 'left': return { x: elCx - offset - 0.15, y: elCy - 0.02 };
+            case 'right': return { x: elCx + offset, y: elCy - 0.02 };
+        }
+    }
+    // Fallback: center
+    return { x: 0.4, y: 0.4 };
+}
+// ── Element hit capture ────────────────────────────────────────────────────
+/**
+ * Capture the bounding box of an interacted element for auto-zoom.
+ * Records the element's position and time relative to recording start.
+ */
+async function captureElementHit(ctx, locator, step) {
+    try {
+        const bbox = await locator.boundingBox();
+        if (!bbox)
+            return;
+        const timeMs = Date.now() - ctx.session._startTime;
+        const stepIndex = ctx.session._elementHits.length;
+        ctx.session._elementHits.push({
+            stepIndex,
+            timeMs,
+            selector: 'target' in step ? step.target : '',
+            bbox,
+        });
+    }
+    catch {
+        // Element may not be visible or page navigated
+    }
+}
 // ── Main runner ─────────────────────────────────────────────────────────────
 /**
  * Execute an array of declarative steps against a recording session.
@@ -189,6 +236,7 @@ export async function runSteps(session, steps, options = {}) {
     for (let i = 0; i < steps.length; i++) {
         const step = steps[i];
         options.onStep?.(i, step, 'start');
+        const stepStartMs = Date.now() - session._startTime;
         try {
             await executeStep(ctx, step, options);
             options.onStep?.(i, step, 'done');
@@ -213,6 +261,34 @@ export async function runSteps(session, steps, options = {}) {
         // Inter-step delay for video readability (skip for non-visual steps)
         if (delay > 0 && !['pause', 'resume', 'save', 'exec'].includes(step.action)) {
             await new Promise((r) => setTimeout(r, delay));
+        }
+        const stepEndMs = Date.now() - session._startTime;
+        // Capture speed region if the step has a speed directive
+        if ('speed' in step && step.speed && step.speed !== 1) {
+            session._speedRegions.push({
+                id: `speed-step-${i}`,
+                startMs: stepStartMs,
+                endMs: stepEndMs,
+                speed: step.speed,
+            });
+        }
+        // Capture annotation if the step has an annotation directive
+        if ('annotation' in step && step.annotation) {
+            const ann = step.annotation;
+            const lastHit = session._elementHits[session._elementHits.length - 1];
+            const position = resolveAnnotationPosition(ann, lastHit, session._viewport);
+            const annotation = {
+                id: `ann-step-${i}`,
+                startMs: stepStartMs,
+                endMs: stepEndMs + 500, // hold annotation 500ms after step completes
+                type: ann.arrow ? 'arrow' : 'text',
+                ...(ann.text ? { content: ann.text } : {}),
+                position: { x: position.x, y: position.y },
+                size: { width: ann.arrow ? 0.05 : 0.15, height: ann.arrow ? 0.08 : 0.04 },
+                ...(ann.style ? { style: ann.style } : {}),
+                ...(ann.arrow ? { arrow: { direction: ann.arrow, ...(ann.style?.color ? { color: ann.style.color } : {}) } } : {}),
+            };
+            session._annotations.push(annotation);
         }
     }
     return { vars: ctx.vars };

@@ -1,3 +1,4 @@
+import type { ZoomRegion, GifOptions, SpeedRegion } from './types.js';
 /**
  * Click visualization script injected into every page via addInitScript.
  * Draws a red expanding/fading circle at each click point — captured in video.
@@ -15,6 +16,22 @@ export declare const KEYSTROKE_VIS_SCRIPT = "\n  (function() {\n    let overlay 
  */
 export declare function convertToMp4(webmPath: string, mp4Path: string): void;
 /**
+ * Convert an mp4 to an animated GIF using ffmpeg two-pass palette method.
+ * Produces high-quality dithered output with reasonable file sizes.
+ */
+export declare function convertToGif(mp4Path: string, gifPath: string, options?: GifOptions): void;
+/**
+ * Convert webm to mp4 with zoom regions applied via ffmpeg zoompan filter.
+ * Generates per-frame zoom/pan expressions from the zoom region data.
+ */
+export declare function convertToMp4WithZoom(webmPath: string, mp4Path: string, zoomRegions: ZoomRegion[], viewport: {
+    width: number;
+    height: number;
+}, pauses?: {
+    start: number;
+    end: number;
+}[]): void;
+/**
  * Composite a recorded MP4 onto a desktop frame PNG using ffmpeg overlay.
  */
 export declare function compositeWithFrame(mp4Path: string, framePngPath: string, outputPath: string, contentX: number, contentY: number): void;
@@ -23,6 +40,15 @@ export declare function compositeWithFrame(mp4Path: string, framePngPath: string
  * Uses ffmpeg trim + concat filters to splice out the paused ranges.
  */
 export declare function convertToMp4WithTrim(webmPath: string, mp4Path: string, pauses: {
+    start: number;
+    end: number;
+}[]): void;
+/**
+ * Convert webm to mp4 with speed regions applied via ffmpeg setpts + concat.
+ * Each segment between speed boundaries gets its own setpts factor.
+ * Also handles pause trimming — paused segments are removed before speed is applied.
+ */
+export declare function convertToMp4WithSpeed(webmPath: string, mp4Path: string, speedRegions: SpeedRegion[], pauses?: {
     start: number;
     end: number;
 }[]): void;

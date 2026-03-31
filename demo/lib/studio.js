@@ -565,6 +565,44 @@ function studioHtml() {
         </div>
       </div>
 
+      <div class="control-group" id="zoom-group">
+        <div class="control-label">Zoom Regions</div>
+        <div id="zoom-list" style="font-size:12px;color:#999;"></div>
+        <label class="toggle-row"><input type="checkbox" id="zoom-enabled" style="accent-color:#2563eb;"> Auto-zoom to clicks</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+          <span style="font-size:12px;color:#666;">Depth</span>
+          <input type="range" id="zoom-depth" min="1" max="6" value="3" style="flex:1;accent-color:#2563eb;">
+          <span id="zoom-depth-value" style="font-size:12px;color:#999;min-width:24px;text-align:right;">3</span>
+        </div>
+      </div>
+
+      <div class="control-group" id="export-group">
+        <div class="control-label">Export Format</div>
+        <div class="radio-group" id="format-group">
+          <label><input type="radio" name="format" value="mp4" checked><span>MP4</span></label>
+          <label><input type="radio" name="format" value="gif"><span>GIF</span></label>
+        </div>
+        <div id="gif-options" style="display:none;margin-top:8px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-size:12px;color:#666;min-width:48px;">FPS</span>
+            <select class="select-input" id="gif-fps" style="flex:1;">
+              <option value="15" selected>15</option>
+              <option value="20">20</option>
+              <option value="25">25</option>
+              <option value="30">30</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:#666;min-width:48px;">Size</span>
+            <select class="select-input" id="gif-size" style="flex:1;">
+              <option value="medium" selected>Medium (720p)</option>
+              <option value="large">Large (1080p)</option>
+              <option value="original">Original</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="controls-spacer"></div>
 
       <button class="render-btn" id="render-btn">Save &amp; Render MP4</button>
@@ -605,6 +643,14 @@ const tbCheck = $('tb-check');
 const titleSuffixInput = $('title-suffix-input');
 const statusTextInput = $('status-text-input');
 const clockTextInput = $('clock-text-input');
+
+const zoomEnabled = $('zoom-enabled');
+const zoomDepthSlider = $('zoom-depth');
+const zoomDepthValue = $('zoom-depth-value');
+const zoomList = $('zoom-list');
+const gifOptionsEl = $('gif-options');
+const gifFps = $('gif-fps');
+const gifSize = $('gif-size');
 
 let current = null;
 let manifest = null;
@@ -659,6 +705,20 @@ async function selectRecording(name) {
     titleInput.value = '';
     urlInput.value = '';
     resetComponents();
+  }
+
+  // Show zoom regions from manifest
+  const regions = manifest?.capture?.zoomRegions || [];
+  if (regions.length > 0) {
+    zoomList.innerHTML = regions.map((r, i) =>
+      '<div style="margin-bottom:4px;">Z' + (i+1) + ': ' +
+      (r.startMs/1000).toFixed(1) + 's\\u2013' + (r.endMs/1000).toFixed(1) + 's ' +
+      '(depth ' + r.depth + ', focus ' + r.focus.cx.toFixed(2) + ',' + r.focus.cy.toFixed(2) + ')</div>'
+    ).join('');
+    zoomEnabled.checked = true;
+  } else {
+    zoomList.innerHTML = '<span style="color:#555;">No zoom regions captured</span>';
+    zoomEnabled.checked = false;
   }
 
   emptyState.style.display = 'none';
@@ -740,8 +800,13 @@ function getComponents() {
   return comp;
 }
 
+function getExportFormat() {
+  return document.querySelector('input[name="format"]:checked')?.value || 'mp4';
+}
+
 function getOptions() {
   const [w, h] = resSelect.value.split('x').map(Number);
+  const format = getExportFormat();
   return {
     style: getStyle(),
     title: titleInput.value,
@@ -750,6 +815,12 @@ function getOptions() {
     offsetY: parseInt(offsetSlider.value, 10),
     wallpaper: wallpaperCustom.checked ? wallpaperColor.value : '',
     components: getComponents(),
+    exportFormat: format,
+    gifOptions: format === 'gif' ? {
+      frameRate: parseInt(gifFps.value, 10),
+      sizePreset: gifSize.value,
+      loop: true,
+    } : undefined,
   };
 }
 
@@ -822,6 +893,20 @@ wallpaperCustom.addEventListener('change', updatePreview);
 [tlCheck, abCheck, sbCheck, tbCheck].forEach(cb => cb.addEventListener('change', updatePreview));
 [titleSuffixInput, statusTextInput, clockTextInput].forEach(inp => inp.addEventListener('input', scheduleUpdate));
 
+// Format toggle
+document.querySelectorAll('input[name="format"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const fmt = getExportFormat();
+    gifOptionsEl.style.display = fmt === 'gif' ? '' : 'none';
+    renderBtn.textContent = fmt === 'gif' ? 'Save \\u0026 Render GIF' : 'Save \\u0026 Render MP4';
+  });
+});
+
+// Zoom depth slider
+zoomDepthSlider.addEventListener('input', () => {
+  zoomDepthValue.textContent = zoomDepthSlider.value;
+});
+
 renderBtn.addEventListener('click', async () => {
   if (!current) return;
   renderBtn.disabled = true;
@@ -830,6 +915,10 @@ renderBtn.addEventListener('click', async () => {
 
   try {
     const opts = getOptions();
+
+    // Pass zoom regions from manifest (or empty if disabled)
+    const zoomRegions = zoomEnabled.checked ? (manifest?.capture?.zoomRegions || []) : [];
+
     const res = await fetch('/api/recordings/' + current + '/render', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -841,12 +930,16 @@ renderBtn.addEventListener('click', async () => {
         windowOffsetY: opts.offsetY,
         wallpaperColor: opts.wallpaper || undefined,
         components: opts.components,
+        zoomRegions: zoomRegions.length > 0 ? zoomRegions : undefined,
+        exportFormat: opts.exportFormat !== 'mp4' ? opts.exportFormat : undefined,
+        gifOptions: opts.gifOptions,
       }),
     });
     const result = await res.json();
+    const fmt = opts.exportFormat;
     if (result.mp4Path) {
       statusEl.className = 'status-bar success';
-      statusEl.textContent = 'Saved \\u2192 ' + result.mp4Path;
+      statusEl.textContent = 'Saved \\u2192 ' + result.mp4Path + (fmt === 'gif' ? ' + .gif' : '');
     } else {
       statusEl.className = 'status-bar error';
       statusEl.textContent = 'Render failed \\u2014 is ffmpeg installed?';

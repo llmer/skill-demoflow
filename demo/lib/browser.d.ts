@@ -1,5 +1,6 @@
 import { type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { type DesktopFrameOptions, type FrameComponents } from './frame.js';
+import type { ElementHit, ZoomRegion, SpeedRegion, Annotation, ScenarioEffects, GifOptions } from './types.js';
 export interface RecordingOptions {
     /** Output directory for HAR, video, screenshots. Created if missing. */
     outputDir: string;
@@ -22,6 +23,8 @@ export interface RecordingOptions {
     scenarioPath?: string;
     /** Path to target file — stored in manifest for cache invalidation. */
     targetPath?: string;
+    /** Scenario-level effect configuration (auto-zoom, GIF export, etc.) */
+    effects?: ScenarioEffects;
 }
 export interface PauseSegment {
     /** Seconds from recording start when pause began */
@@ -53,6 +56,16 @@ export interface RecordingSession {
     _scenarioPath?: string;
     /** @internal target file path for manifest hashing */
     _targetPath?: string;
+    /** @internal element bounding boxes captured during recording (for auto-zoom) */
+    _elementHits: ElementHit[];
+    /** @internal explicitly defined zoom regions */
+    _zoomRegions: ZoomRegion[];
+    /** @internal speed regions for variable playback speed */
+    _speedRegions: SpeedRegion[];
+    /** @internal annotations from step directives */
+    _annotations: Annotation[];
+    /** @internal scenario-level effect configuration */
+    _effects: ScenarioEffects;
 }
 export interface RecordingResult {
     harPath: string;
@@ -77,6 +90,16 @@ export interface RenderOptions {
     wallpaperColor?: string;
     /** Per-component visibility and text overrides. */
     components?: FrameComponents;
+    /** Zoom regions to apply. Falls back to manifest data. */
+    zoomRegions?: ZoomRegion[];
+    /** Speed regions to apply. Falls back to manifest data. */
+    speedRegions?: SpeedRegion[];
+    /** Annotations to draw on frames. Falls back to manifest data. */
+    annotations?: Annotation[];
+    /** Export format. Default: 'mp4' */
+    exportFormat?: 'mp4' | 'gif';
+    /** GIF export options (when exportFormat is 'gif'). */
+    gifOptions?: GifOptions;
 }
 export interface RenderResult {
     mp4Path: string | null;

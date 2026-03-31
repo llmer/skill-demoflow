@@ -158,6 +158,11 @@ export async function launchTerminal(options) {
         _viewport: viewport,
         _scenarioPath: scenarioPath,
         _targetPath: targetPath,
+        _elementHits: [],
+        _zoomRegions: [],
+        _speedRegions: [],
+        _annotations: [],
+        _effects: {},
         _typingSpeed: typingSpeed,
         _pty: null, // set below after PTY is confirmed
         _server: server,

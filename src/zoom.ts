@@ -290,16 +290,17 @@ export function generateAutoZoomRegions(
   const depth = options.depth ?? 3
   const duration = options.durationMs ?? 1500
 
-  return hits.map((hit, i) => {
-    const cx = (hit.bbox.x + hit.bbox.width / 2) / viewport.width
-    const cy = (hit.bbox.y + hit.bbox.height / 2) / viewport.height
+  return hits
+    .map((hit, i) => {
+      const cx = clamp01((hit.bbox.x + hit.bbox.width / 2) / viewport.width)
+      const cy = clamp01((hit.bbox.y + hit.bbox.height / 2) / viewport.height)
 
-    return {
-      id: `auto-zoom-${i}`,
-      startMs: Math.max(0, hit.timeMs - 300),
-      endMs: hit.timeMs + duration,
-      depth,
-      focus: { cx, cy },
-    }
-  })
+      return {
+        id: `auto-zoom-${i}`,
+        startMs: Math.max(0, hit.timeMs - 300),
+        endMs: hit.timeMs + duration,
+        depth,
+        focus: { cx, cy },
+      }
+    })
 }

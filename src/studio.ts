@@ -255,58 +255,128 @@ function studioHtml(): string {
 <head>
 <meta charset="utf-8">
 <title>DemoFlow Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-    background: #0e0e0e;
-    color: #e0e0e0;
+    font-family: 'DM Sans', -apple-system, system-ui, sans-serif;
+    background: #0C0C0C;
+    color: #FAFAFA;
     height: 100vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
 
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ── Topbar ── */
+
   .topbar {
-    height: 52px;
-    background: #161616;
-    border-bottom: 1px solid #2a2a2a;
+    height: 48px;
+    background: #141414;
+    border-bottom: 1px solid #262626;
     display: flex;
     align-items: center;
-    padding: 0 20px;
-    gap: 16px;
+    padding: 0 16px;
+    gap: 12px;
     flex-shrink: 0;
   }
 
   .topbar-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
-    letter-spacing: -0.2px;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: #A1A1AA;
   }
 
-  .topbar-dot {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: #444;
-  }
+  .topbar-sep { color: #333; font-size: 14px; user-select: none; }
 
   .topbar select {
-    background: #222;
-    border: 1px solid #333;
-    color: #ccc;
-    padding: 6px 12px;
-    border-radius: 6px;
+    background: #1a1a1a;
+    border: 1px solid #262626;
+    color: #FAFAFA;
+    padding: 5px 10px;
+    border-radius: 8px;
     font-size: 13px;
-    font-family: inherit;
+    font-family: 'DM Sans', sans-serif;
     outline: none;
+    transition: border-color 150ms;
   }
 
-  .topbar select:focus {
-    border-color: #555;
+  .topbar select:focus { border-color: #F59E0B; }
+
+  .topbar-spacer { flex: 1; }
+
+  .kbd-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #3a3a3a;
+    cursor: default;
+    position: relative;
+    padding: 4px;
   }
+
+  .kbd-hint:hover .kbd-tooltip { display: block; }
+
+  .kbd-tooltip {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: #1a1a1a;
+    border: 1px solid #262626;
+    border-radius: 12px;
+    padding: 10px 14px;
+    width: 200px;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+
+  .kbd-tooltip div {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 11px;
+  }
+
+  .kbd-tooltip .kl { color: #A1A1AA; font-family: 'DM Sans', sans-serif; }
+  .kbd-tooltip .kv { color: #F59E0B; }
+
+  .render-btn {
+    background: #F59E0B;
+    color: #0C0C0C;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 150ms;
+  }
+
+  .render-btn:hover { background: #D97706; }
+  .render-btn:active { background: #B45309; }
+
+  .render-btn:disabled {
+    background: #262626;
+    color: #52525B;
+    cursor: not-allowed;
+  }
+
+  /* ── Layout ── */
 
   .main {
     flex: 1;
@@ -316,455 +386,713 @@ function studioHtml(): string {
 
   .preview-pane {
     flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #0a0a0a;
     position: relative;
+    background: #0C0C0C;
     overflow: hidden;
   }
 
   .preview-pane iframe {
+    position: absolute;
     border: none;
-    border-radius: 4px;
     background: #000;
+    border-radius: 4px;
   }
 
   .empty-state {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
     text-align: center;
-    color: #555;
   }
 
   .empty-state h2 {
-    font-size: 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
     font-weight: 500;
+    color: #A1A1AA;
     margin-bottom: 8px;
-    color: #666;
   }
 
   .empty-state p {
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.6;
+    color: #52525B;
   }
 
+  /* ── Controls Sidebar ── */
+
   .controls {
-    width: 280px;
-    background: #161616;
-    border-left: 1px solid #2a2a2a;
-    padding: 24px 20px;
+    width: 260px;
+    background: #141414;
+    border-left: 1px solid #262626;
     overflow-y: auto;
     flex-shrink: 0;
+  }
+
+  .controls::-webkit-scrollbar { width: 3px; }
+  .controls::-webkit-scrollbar-track { background: transparent; }
+  .controls::-webkit-scrollbar-thumb { background: #262626; border-radius: 2px; }
+
+  /* ── Collapsible Sections ── */
+
+  .section { border-bottom: 1px solid #1e1e1e; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 150ms;
+  }
+
+  .section-header:hover { background: #1a1a1a; }
+
+  .section-chevron {
+    width: 12px; height: 12px;
+    color: #52525B;
+    transition: transform 200ms ease;
+    flex-shrink: 0;
+    transform: rotate(90deg);
+  }
+
+  .section.collapsed .section-chevron { transform: rotate(0deg); }
+
+  .section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #A1A1AA;
+  }
+
+  .section-body {
+    padding: 0 16px 16px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 14px;
+    overflow: hidden;
+    max-height: 600px;
+    opacity: 1;
+    transition: max-height 250ms ease, padding-bottom 200ms ease, opacity 150ms ease;
   }
+
+  .section.collapsed .section-body {
+    max-height: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ── Controls ── */
 
   .control-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .control-label {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: #666;
-  }
-
-  .radio-group {
-    display: flex;
-    gap: 4px;
-  }
-
-  .radio-group label {
-    flex: 1;
-    text-align: center;
-    padding: 7px 0;
     font-size: 12px;
-    color: #999;
-    background: #1e1e1e;
-    border: 1px solid #2a2a2a;
+    font-weight: 500;
+    color: #71717A;
+  }
+
+  /* ── Style List (vertical) ── */
+
+  .style-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .style-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background 150ms;
+    border-left: 2px solid transparent;
     user-select: none;
   }
 
-  .radio-group label:first-child {
-    border-radius: 6px 0 0 6px;
+  .style-option:hover { background: #1a1a1a; }
+
+  .style-option.active {
+    background: #1a1a1a;
+    border-left-color: #F59E0B;
   }
 
-  .radio-group label:last-child {
-    border-radius: 0 6px 6px 0;
+  .style-option input[type="radio"] { display: none; }
+
+  .style-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    border: 1.5px solid #52525B;
+    flex-shrink: 0;
+    transition: all 150ms;
   }
 
-  .radio-group input { display: none; }
-
-  .radio-group input:checked + span {
-    color: #fff;
+  .style-option.active .style-dot {
+    border-color: #F59E0B;
+    background: #F59E0B;
   }
 
-  .radio-group label:has(input:checked) {
-    background: #2a2a2a;
-    border-color: #444;
-    color: #fff;
+  .style-name {
+    font-size: 13px;
+    color: #A1A1AA;
+    flex: 1;
   }
+
+  .style-option.active .style-name { color: #FAFAFA; }
+
+  .style-desc {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #3a3a3a;
+  }
+
+  .style-option.active .style-desc { color: #52525B; }
+
+  /* ── Inputs ── */
 
   .text-input {
     width: 100%;
-    background: #1e1e1e;
-    border: 1px solid #2a2a2a;
-    color: #ddd;
-    padding: 8px 12px;
-    border-radius: 6px;
+    background: #1a1a1a;
+    border: 1px solid #262626;
+    color: #FAFAFA;
+    padding: 7px 10px;
+    border-radius: 8px;
     font-size: 13px;
-    font-family: inherit;
+    font-family: 'DM Sans', sans-serif;
     outline: none;
-    transition: border-color 0.15s;
+    transition: border-color 150ms;
   }
 
-  .text-input:focus {
-    border-color: #555;
-  }
-
-  .text-input::placeholder {
-    color: #555;
-  }
+  .text-input:focus { border-color: #F59E0B; }
+  .text-input::placeholder { color: #3a3a3a; }
 
   .select-input {
     width: 100%;
-    background: #1e1e1e;
-    border: 1px solid #2a2a2a;
-    color: #ddd;
-    padding: 8px 12px;
-    border-radius: 6px;
+    background: #1a1a1a;
+    border: 1px solid #262626;
+    color: #FAFAFA;
+    padding: 7px 10px;
+    border-radius: 8px;
     font-size: 13px;
-    font-family: inherit;
+    font-family: 'DM Sans', sans-serif;
     outline: none;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%23666' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%2352525B' stroke-width='1.5'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px center;
+    transition: border-color 150ms;
   }
 
-  .controls-spacer { flex: 1; }
+  .select-input:focus { border-color: #F59E0B; }
 
   .toggle-row {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: #999;
+    color: #A1A1AA;
     cursor: pointer;
   }
 
-  .toggle-row input[type="checkbox"] {
-    accent-color: #2563eb;
-  }
+  .toggle-row input[type="checkbox"] { accent-color: #F59E0B; }
 
-  .render-btn {
-    width: 100%;
-    background: #2563eb;
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s;
-    letter-spacing: -0.1px;
-  }
-
-  .render-btn:hover {
-    background: #1d4ed8;
-  }
-
-  .render-btn:active {
-    background: #1e40af;
-  }
-
-  .render-btn:disabled {
-    background: #222;
-    color: #555;
-    cursor: not-allowed;
-  }
-
-  .status-bar {
-    min-height: 32px;
+  .range-row {
     display: flex;
     align-items: center;
+    gap: 8px;
+  }
+
+  .range-row input[type="range"] { flex: 1; accent-color: #F59E0B; }
+
+  .range-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #52525B;
+    min-width: 28px;
+    text-align: right;
+  }
+
+  .range-label {
     font-size: 12px;
-    color: #666;
+    color: #52525B;
+    min-width: 36px;
   }
 
-  .status-bar.success { color: #4ade80; }
-  .status-bar.error { color: #f87171; }
-  .status-bar.loading { color: #facc15; }
+  /* ── Wallpaper ── */
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+  .wallpaper-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
+
+  .wallpaper-swatch {
+    width: 28px; height: 24px;
+    border: 1px solid #262626;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 0;
+    background: none;
+  }
+
+  .wallpaper-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #52525B;
+    flex: 1;
+  }
+
+  .wallpaper-reset {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #3a3a3a;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color 150ms;
+  }
+
+  .wallpaper-reset:hover { color: #F59E0B; }
+
+  /* ── Zoom ── */
+
+  .zoom-info {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #3a3a3a;
+    font-weight: 400;
+  }
+
+  .zoom-region-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #71717A;
+    padding: 2px 0;
+  }
+
+  /* ── Format Toggle ── */
+
+  .format-toggle {
+    display: flex;
+    border: 1px solid #262626;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .format-option {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #52525B;
+    background: #1a1a1a;
+    cursor: pointer;
+    transition: all 150ms;
+    user-select: none;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .format-option input[type="radio"] { display: none; }
+
+  .format-option.active {
+    background: #262626;
+    color: #FAFAFA;
+  }
+
+  .gif-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .gif-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .gif-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #52525B;
+    min-width: 32px;
+  }
+
+  .gif-row .select-input { flex: 1; }
+
+  /* ── Status Bar ── */
+
+  .status-bar {
+    height: 26px;
+    background: #141414;
+    border-top: 1px solid #1e1e1e;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #3a3a3a;
+    flex-shrink: 0;
+    gap: 6px;
+  }
+
+  .status-bar.success { color: #22C55E; }
+  .status-bar.error { color: #EF4444; }
+  .status-bar.loading { color: #F59E0B; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .spinner {
     display: inline-block;
-    width: 12px;
-    height: 12px;
-    border: 2px solid #444;
-    border-top-color: #facc15;
+    width: 10px; height: 10px;
+    border: 1.5px solid #262626;
+    border-top-color: #F59E0B;
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
-    margin-right: 8px;
+    margin-right: 6px;
     vertical-align: middle;
   }
 </style>
 </head>
 <body>
-  <div class="topbar">
-    <span class="topbar-title">DemoFlow Studio</span>
-    <span class="topbar-dot"></span>
-    <select id="recording-select">
-      <option value="">Loading...</option>
-    </select>
+
+<div class="topbar">
+  <span class="topbar-title">DemoFlow Studio</span>
+  <span class="topbar-sep">/</span>
+  <select id="recording-select">
+    <option value="">Loading\u2026</option>
+  </select>
+  <div class="topbar-spacer"></div>
+  <div class="kbd-hint">
+    \u2328
+    <div class="kbd-tooltip">
+      <div><span class="kl">Render</span><span class="kv">\u2318\u23CE</span></div>
+      <div><span class="kl">Frame 1\u20137</span><span class="kv">1\u20137</span></div>
+      <div><span class="kl">Collapse all</span><span class="kv">Esc</span></div>
+    </div>
+  </div>
+  <button class="render-btn" id="render-btn" disabled>Render MP4</button>
+</div>
+
+<div class="main">
+  <div class="preview-pane" id="preview-pane">
+    <div class="empty-state" id="empty-state">
+      <h2>No recordings</h2>
+      <p>Run a scenario with /demo to create a recording,<br>then come back here to adjust the frame.</p>
+    </div>
+    <iframe id="preview-frame" style="display:none"></iframe>
   </div>
 
-  <div class="main">
-    <div class="preview-pane" id="preview-pane">
-      <div class="empty-state" id="empty-state">
-        <h2>No recordings</h2>
-        <p>Run a scenario with /demo to create a recording,<br>then come back here to adjust the frame.</p>
+  <div class="controls">
+
+    <div class="section" id="section-frame">
+      <div class="section-header" onclick="toggleSection('frame')">
+        <svg class="section-chevron" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="section-title">Frame</span>
       </div>
-      <iframe id="preview-frame" style="display:none"></iframe>
+      <div class="section-body">
+        <div class="style-list" id="style-group"></div>
+        <div class="control-group">
+          <label class="control-label">Title</label>
+          <input type="text" class="text-input" id="title-input" placeholder="Page title from recording">
+        </div>
+        <div class="control-group">
+          <label class="control-label">Resolution</label>
+          <select class="select-input" id="resolution-select">
+            <option value="1920x1080">1920 \u00d7 1080</option>
+            <option value="2560x1440">2560 \u00d7 1440</option>
+            <option value="1440x900">1440 \u00d7 900</option>
+            <option value="1280x800">1280 \u00d7 800</option>
+          </select>
+        </div>
+      </div>
     </div>
 
-    <div class="controls">
-      <div class="control-group">
-        <div class="control-label">Frame Style</div>
-        <div class="radio-group" id="style-group">
-          <label><input type="radio" name="style" value="macos" checked><span>macOS</span></label>
-          <label><input type="radio" name="style" value="windows-xp"><span>XP</span></label>
-          <label><input type="radio" name="style" value="windows-98"><span>98</span></label>
-          <label><input type="radio" name="style" value="macos-terminal"><span>Terminal</span></label>
-          <label><input type="radio" name="style" value="vscode"><span>VS Code</span></label>
-          <label><input type="radio" name="style" value="ios"><span>iPhone</span></label>
-          <label><input type="radio" name="style" value="none"><span>None</span></label>
+    <div class="section collapsed" id="section-appearance">
+      <div class="section-header" onclick="toggleSection('appearance')">
+        <svg class="section-chevron" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="section-title">Appearance</span>
+      </div>
+      <div class="section-body">
+        <div class="control-group" id="url-group">
+          <label class="control-label">Address Bar URL</label>
+          <input type="text" class="text-input" id="url-input" placeholder="https://example.com">
         </div>
-      </div>
-
-      <div class="control-group">
-        <div class="control-label">Window Title</div>
-        <input type="text" class="text-input" id="title-input" placeholder="Page title from recording">
-      </div>
-
-      <div class="control-group" id="url-group">
-        <div class="control-label">Address Bar URL</div>
-        <input type="text" class="text-input" id="url-input" placeholder="https://example.com">
-      </div>
-
-      <div class="control-group" id="comp-visibility-group">
-        <div class="control-label">Components</div>
-        <label class="toggle-row" id="tl-toggle"><input type="checkbox" id="tl-check" checked> Traffic Lights</label>
-        <label class="toggle-row" id="ab-toggle"><input type="checkbox" id="ab-check" checked> Address Bar</label>
-        <label class="toggle-row" id="sb-toggle"><input type="checkbox" id="sb-check" checked> Status Bar</label>
-        <label class="toggle-row" id="tb-toggle"><input type="checkbox" id="tb-check" checked> Taskbar</label>
-      </div>
-
-      <div class="control-group" id="comp-text-group">
-        <div class="control-label">Component Text</div>
-        <input type="text" class="text-input" id="title-suffix-input" placeholder=" - Internet Explorer">
-        <input type="text" class="text-input" id="status-text-input" placeholder="Done">
-        <input type="text" class="text-input" id="clock-text-input" placeholder="3:42 PM">
-      </div>
-
-      <div class="control-group">
-        <div class="control-label">Desktop Resolution</div>
-        <select class="select-input" id="resolution-select">
-          <option value="1920x1080">1920 &times; 1080</option>
-          <option value="2560x1440">2560 &times; 1440</option>
-          <option value="1440x900">1440 &times; 900</option>
-          <option value="1280x800">1280 &times; 800</option>
-        </select>
-      </div>
-
-      <div class="control-group" id="offset-group">
-        <div class="control-label">Window Offset Y</div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="range" id="offset-slider" min="-200" max="200" value="0" style="flex:1;accent-color:#2563eb;">
-          <span id="offset-value" style="font-size:12px;color:#999;min-width:36px;text-align:right;">0px</span>
+        <div class="control-group" id="comp-visibility-group">
+          <label class="control-label">Components</label>
+          <label class="toggle-row" id="tl-toggle"><input type="checkbox" id="tl-check" checked> Traffic Lights</label>
+          <label class="toggle-row" id="ab-toggle"><input type="checkbox" id="ab-check" checked> Address Bar</label>
+          <label class="toggle-row" id="sb-toggle"><input type="checkbox" id="sb-check" checked> Status Bar</label>
+          <label class="toggle-row" id="tb-toggle"><input type="checkbox" id="tb-check" checked> Taskbar</label>
         </div>
-      </div>
-
-      <div class="control-group" id="wallpaper-group">
-        <div class="control-label">Wallpaper Color</div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="color" id="wallpaper-color" value="#1a0a2e" style="width:36px;height:28px;border:1px solid #2a2a2a;border-radius:4px;background:none;cursor:pointer;">
-          <label style="font-size:12px;color:#999;display:flex;align-items:center;gap:4px;cursor:pointer;">
-            <input type="checkbox" id="wallpaper-custom" style="accent-color:#2563eb;"> Custom
-          </label>
+        <div class="control-group" id="comp-text-group">
+          <label class="control-label">Component Text</label>
+          <input type="text" class="text-input" id="title-suffix-input" placeholder="- Internet Explorer">
+          <input type="text" class="text-input" id="status-text-input" placeholder="Done">
+          <input type="text" class="text-input" id="clock-text-input" placeholder="3:42 PM">
         </div>
-      </div>
-
-      <div class="control-group" id="zoom-group">
-        <div class="control-label">Zoom Regions</div>
-        <div id="zoom-list" style="font-size:12px;color:#999;"></div>
-        <label class="toggle-row"><input type="checkbox" id="zoom-enabled" style="accent-color:#2563eb;"> Auto-zoom to clicks</label>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-          <span style="font-size:12px;color:#666;">Depth</span>
-          <input type="range" id="zoom-depth" min="1" max="6" value="3" style="flex:1;accent-color:#2563eb;">
-          <span id="zoom-depth-value" style="font-size:12px;color:#999;min-width:24px;text-align:right;">3</span>
-        </div>
-      </div>
-
-      <div class="control-group" id="export-group">
-        <div class="control-label">Export Format</div>
-        <div class="radio-group" id="format-group">
-          <label><input type="radio" name="format" value="mp4" checked><span>MP4</span></label>
-          <label><input type="radio" name="format" value="gif"><span>GIF</span></label>
-        </div>
-        <div id="gif-options" style="display:none;margin-top:8px;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span style="font-size:12px;color:#666;min-width:48px;">FPS</span>
-            <select class="select-input" id="gif-fps" style="flex:1;">
-              <option value="15" selected>15</option>
-              <option value="20">20</option>
-              <option value="25">25</option>
-              <option value="30">30</option>
-            </select>
+        <div class="control-group" id="offset-group">
+          <label class="control-label">Window Offset</label>
+          <div class="range-row">
+            <input type="range" id="offset-slider" min="-200" max="200" value="0">
+            <span class="range-value" id="offset-value">0px</span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:12px;color:#666;min-width:48px;">Size</span>
-            <select class="select-input" id="gif-size" style="flex:1;">
-              <option value="medium" selected>Medium (720p)</option>
-              <option value="large">Large (1080p)</option>
-              <option value="original">Original</option>
-            </select>
+        </div>
+        <div class="control-group" id="wallpaper-group">
+          <label class="control-label">Wallpaper</label>
+          <div class="wallpaper-row">
+            <input type="color" class="wallpaper-swatch" id="wallpaper-color" value="#1a0a2e">
+            <span class="wallpaper-label" id="wallpaper-label">Default</span>
+            <button class="wallpaper-reset" id="wallpaper-reset">Reset</button>
           </div>
         </div>
       </div>
-
-      <div class="controls-spacer"></div>
-
-      <button class="render-btn" id="render-btn">Save &amp; Render MP4</button>
-      <div class="status-bar" id="status"></div>
     </div>
+
+    <div class="section collapsed" id="section-effects">
+      <div class="section-header" onclick="toggleSection('effects')">
+        <svg class="section-chevron" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="section-title">Effects</span>
+      </div>
+      <div class="section-body">
+        <div class="control-group" id="zoom-group">
+          <label class="control-label">Zoom Regions <span class="zoom-info">(auto-detected)</span></label>
+          <div id="zoom-list"></div>
+          <label class="toggle-row"><input type="checkbox" id="zoom-enabled"> Auto-zoom to clicks</label>
+          <div class="range-row">
+            <span class="range-label">Depth</span>
+            <input type="range" id="zoom-depth" min="1" max="6" value="3">
+            <span class="range-value" id="zoom-depth-value">3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section collapsed" id="section-export">
+      <div class="section-header" onclick="toggleSection('export')">
+        <svg class="section-chevron" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="section-title">Export</span>
+      </div>
+      <div class="section-body">
+        <div class="control-group">
+          <label class="control-label">Format</label>
+          <div class="format-toggle" id="format-group">
+            <label class="format-option active"><input type="radio" name="format" value="mp4" checked><span>MP4</span></label>
+            <label class="format-option"><input type="radio" name="format" value="gif"><span>GIF</span></label>
+          </div>
+          <div class="gif-options" id="gif-options" style="display:none">
+            <div class="gif-row">
+              <span class="gif-label">FPS</span>
+              <select class="select-input" id="gif-fps">
+                <option value="15" selected>15</option>
+                <option value="20">20</option>
+                <option value="25">25</option>
+                <option value="30">30</option>
+              </select>
+            </div>
+            <div class="gif-row">
+              <span class="gif-label">Size</span>
+              <select class="select-input" id="gif-size">
+                <option value="medium" selected>Medium (720p)</option>
+                <option value="large">Large (1080p)</option>
+                <option value="original">Original</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
+</div>
+
+<div class="status-bar" id="status"></div>
 
 <script>
-const $ = (s) => document.getElementById(s);
-const recSelect = $('recording-select');
-const previewFrame = $('preview-frame');
-const emptyState = $('empty-state');
-const previewPane = $('preview-pane');
-const titleInput = $('title-input');
-const urlInput = $('url-input');
-const urlGroup = $('url-group');
-const resSelect = $('resolution-select');
-const offsetSlider = $('offset-slider');
-const offsetValue = $('offset-value');
-const offsetGroup = $('offset-group');
-const wallpaperColor = $('wallpaper-color');
-const wallpaperCustom = $('wallpaper-custom');
-const wallpaperGroup = $('wallpaper-group');
-const renderBtn = $('render-btn');
-const statusEl = $('status');
+var g = function(id) { return document.getElementById(id); };
+var recSelect = g('recording-select');
+var previewFrame = g('preview-frame');
+var emptyState = g('empty-state');
+var previewPane = g('preview-pane');
+var titleInput = g('title-input');
+var urlInput = g('url-input');
+var urlGroup = g('url-group');
+var resSelect = g('resolution-select');
+var offsetSlider = g('offset-slider');
+var offsetValue = g('offset-value');
+var offsetGroup = g('offset-group');
+var wallpaperColor = g('wallpaper-color');
+var wallpaperLabel = g('wallpaper-label');
+var wallpaperReset = g('wallpaper-reset');
+var wallpaperGroup = g('wallpaper-group');
+var renderBtn = g('render-btn');
+var statusEl = g('status');
 
-// Component controls
-const compVisGroup = $('comp-visibility-group');
-const compTextGroup = $('comp-text-group');
-const tlToggle = $('tl-toggle');
-const abToggle = $('ab-toggle');
-const sbToggle = $('sb-toggle');
-const tbToggle = $('tb-toggle');
-const tlCheck = $('tl-check');
-const abCheck = $('ab-check');
-const sbCheck = $('sb-check');
-const tbCheck = $('tb-check');
-const titleSuffixInput = $('title-suffix-input');
-const statusTextInput = $('status-text-input');
-const clockTextInput = $('clock-text-input');
+var compVisGroup = g('comp-visibility-group');
+var compTextGroup = g('comp-text-group');
+var tlToggle = g('tl-toggle');
+var abToggle = g('ab-toggle');
+var sbToggle = g('sb-toggle');
+var tbToggle = g('tb-toggle');
+var tlCheck = g('tl-check');
+var abCheck = g('ab-check');
+var sbCheck = g('sb-check');
+var tbCheck = g('tb-check');
+var titleSuffixInput = g('title-suffix-input');
+var statusTextInput = g('status-text-input');
+var clockTextInput = g('clock-text-input');
 
-const zoomEnabled = $('zoom-enabled');
-const zoomDepthSlider = $('zoom-depth');
-const zoomDepthValue = $('zoom-depth-value');
-const zoomList = $('zoom-list');
-const gifOptionsEl = $('gif-options');
-const gifFps = $('gif-fps');
-const gifSize = $('gif-size');
+var zoomEnabled = g('zoom-enabled');
+var zoomDepthSlider = g('zoom-depth');
+var zoomDepthValue = g('zoom-depth-value');
+var zoomList = g('zoom-list');
+var gifOptionsEl = g('gif-options');
+var gifFps = g('gif-fps');
+var gifSize = g('gif-size');
 
-let current = null;
-let manifest = null;
+var current = null;
+var manifest = null;
+var wallpaperActive = false;
+
+var STYLES = [
+  { value: 'macos', name: 'macOS', desc: 'Sonoma' },
+  { value: 'windows-xp', name: 'Windows XP', desc: '' },
+  { value: 'windows-98', name: 'Windows 98', desc: '' },
+  { value: 'macos-terminal', name: 'Terminal', desc: 'macOS' },
+  { value: 'vscode', name: 'VS Code', desc: '' },
+  { value: 'ios', name: 'iPhone', desc: 'iOS' },
+  { value: 'none', name: 'None', desc: 'Raw' }
+];
+
+// ── Sections ──
+
+function toggleSection(name) {
+  var el = g('section-' + name);
+  el.classList.toggle('collapsed');
+}
+
+// ── Style List ──
+
+function renderStyleList(activeValue) {
+  var group = g('style-group');
+  group.innerHTML = STYLES.map(function(s) {
+    return '<div class="style-option' + (s.value === activeValue ? ' active' : '') + '" data-style="' + s.value + '">' +
+      '<input type="radio" name="style" value="' + s.value + '"' + (s.value === activeValue ? ' checked' : '') + '>' +
+      '<div class="style-dot"></div>' +
+      '<span class="style-name">' + s.name + '</span>' +
+      (s.desc ? '<span class="style-desc">' + s.desc + '</span>' : '') +
+      '</div>';
+  }).join('');
+
+  group.querySelectorAll('.style-option').forEach(function(el) {
+    el.addEventListener('click', function() { selectStyle(el.dataset.style); });
+  });
+}
+
+function selectStyle(value) {
+  var radio = document.querySelector('input[name="style"][value="' + value + '"]');
+  if (radio) radio.checked = true;
+  document.querySelectorAll('.style-option').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.style === value);
+  });
+  toggleStyleControls();
+  updatePreview();
+}
+
+function getStyle() {
+  var checked = document.querySelector('input[name="style"]:checked');
+  return checked ? checked.value : 'macos';
+}
+
+// ── Recordings ──
 
 async function loadRecordings() {
-  const res = await fetch('/api/recordings');
-  const recs = await res.json();
+  var res = await fetch('/api/recordings');
+  var recs = await res.json();
   if (recs.length === 0) {
     recSelect.innerHTML = '<option value="">No recordings</option>';
     emptyState.style.display = '';
     previewFrame.style.display = 'none';
+    renderBtn.disabled = true;
     return;
   }
-  recSelect.innerHTML = recs.map(r =>
-    '<option value="' + r.name + '">' + r.name + (r.hasMp4 ? '' : ' (no mp4)') + '</option>'
-  ).join('');
+  recSelect.innerHTML = recs.map(function(r) {
+    return '<option value="' + r.name + '">' + r.name + (r.hasMp4 ? '' : ' (no mp4)') + '</option>';
+  }).join('');
   await selectRecording(recs[0].name);
 }
 
 async function selectRecording(name) {
   current = name;
   try {
-    const res = await fetch('/api/recordings/' + name + '/manifest');
+    var res = await fetch('/api/recordings/' + name + '/manifest');
     manifest = res.ok ? await res.json() : null;
-  } catch { manifest = null; }
+  } catch(e) { manifest = null; }
 
-  // Populate controls from manifest
-  if (manifest?.render) {
-    setStyle(manifest.render.frameStyle || 'macos');
-    titleInput.value = manifest.render.title || manifest.capture?.pageTitle || '';
-    urlInput.value = manifest.render.url || manifest.capture?.pageUrl || '';
-    const r = manifest.render.resolution;
-    if (r) resSelect.value = r.width + 'x' + r.height;
-    // Restore component state
-    const comp = manifest.render.components || {};
+  wallpaperActive = false;
+  wallpaperLabel.textContent = 'Default';
+
+  if (manifest && manifest.render) {
+    var r = manifest.render;
+    renderStyleList(r.frameStyle || 'macos');
+    titleInput.value = r.title || (manifest.capture && manifest.capture.pageTitle) || '';
+    urlInput.value = r.url || (manifest.capture && manifest.capture.pageUrl) || '';
+    if (r.resolution) resSelect.value = r.resolution.width + 'x' + r.resolution.height;
+    var comp = r.components || {};
     tlCheck.checked = !comp.hideTrafficLights;
     abCheck.checked = !comp.hideAddressBar;
     sbCheck.checked = !comp.hideStatusBar;
     tbCheck.checked = !comp.hideTaskbar;
-    titleSuffixInput.value = comp.titleSuffix ?? '';
-    statusTextInput.value = comp.statusText ?? '';
-    clockTextInput.value = comp.clockText ?? '';
-  } else if (manifest?.capture) {
-    const defaultStyle = manifest.capture.device ? 'ios' : manifest.capture.terminal ? 'macos-terminal' : 'macos';
-    setStyle(defaultStyle);
+    titleSuffixInput.value = comp.titleSuffix || '';
+    statusTextInput.value = comp.statusText || '';
+    clockTextInput.value = comp.clockText || '';
+  } else if (manifest && manifest.capture) {
+    var defaultStyle = manifest.capture.device ? 'ios' : manifest.capture.terminal ? 'macos-terminal' : 'macos';
+    renderStyleList(defaultStyle);
     if (manifest.capture.device) resSelect.value = '1080x1920';
     titleInput.value = manifest.capture.pageTitle || '';
     urlInput.value = manifest.capture.pageUrl || '';
     resetComponents();
   } else {
-    setStyle('macos');
+    renderStyleList('macos');
     titleInput.value = '';
     urlInput.value = '';
     resetComponents();
   }
 
-  // Show zoom regions from manifest
-  const regions = manifest?.capture?.zoomRegions || [];
+  var regions = (manifest && manifest.capture && manifest.capture.zoomRegions) || [];
   if (regions.length > 0) {
-    zoomList.innerHTML = regions.map((r, i) =>
-      '<div style="margin-bottom:4px;">Z' + (i+1) + ': ' +
-      (r.startMs/1000).toFixed(1) + 's\\u2013' + (r.endMs/1000).toFixed(1) + 's ' +
-      '(depth ' + r.depth + ', focus ' + r.focus.cx.toFixed(2) + ',' + r.focus.cy.toFixed(2) + ')</div>'
-    ).join('');
+    zoomList.innerHTML = regions.map(function(r, i) {
+      return '<div class="zoom-region-item">Z' + (i+1) + ': ' +
+        (r.startMs/1000).toFixed(1) + 's\\u2013' + (r.endMs/1000).toFixed(1) + 's ' +
+        '(depth ' + r.depth + ')</div>';
+    }).join('');
     zoomEnabled.checked = true;
   } else {
-    zoomList.innerHTML = '<span style="color:#555;">No zoom regions captured</span>';
+    zoomList.innerHTML = '<div class="zoom-region-item">None captured</div>';
     zoomEnabled.checked = false;
   }
 
   emptyState.style.display = 'none';
   previewFrame.style.display = '';
+  renderBtn.disabled = false;
+  toggleStyleControls();
   updatePreview();
+  showInfo();
 }
 
 function resetComponents() {
@@ -777,57 +1105,47 @@ function resetComponents() {
   clockTextInput.value = '';
 }
 
-function setStyle(value) {
-  const radio = document.querySelector('input[name="style"][value="' + value + '"]');
-  if (radio) radio.checked = true;
-  toggleStyleControls();
-}
-
-function getStyle() {
-  return document.querySelector('input[name="style"]:checked')?.value || 'macos';
-}
+// ── Style-dependent visibility ──
 
 function toggleStyleControls() {
-  const s = getStyle();
-  const isWin = s === 'windows-xp' || s === 'windows-98';
-  const isMac = s === 'macos' || s === 'macos-terminal';
-  const isTerminal = s === 'macos-terminal' || s === 'vscode';
-  const isNone = s === 'none';
-  const isMobile = s === 'ios';
+  var s = getStyle();
+  var isWin = s === 'windows-xp' || s === 'windows-98';
+  var isMac = s === 'macos' || s === 'macos-terminal';
+  var isTerminal = s === 'macos-terminal' || s === 'vscode';
+  var isNone = s === 'none';
+  var isMobile = s === 'ios';
 
   urlGroup.style.display = isWin ? '' : 'none';
   offsetGroup.style.display = (isNone || isMobile) ? 'none' : '';
   wallpaperGroup.style.display = isNone ? 'none' : '';
 
-  // Component visibility toggles
   compVisGroup.style.display = (isNone || isTerminal || isMobile) ? 'none' : '';
   tlToggle.style.display = (isMac && !isTerminal) ? '' : 'none';
   abToggle.style.display = isWin ? '' : 'none';
   sbToggle.style.display = isWin ? '' : 'none';
   tbToggle.style.display = isWin ? '' : 'none';
 
-  // Component text overrides (XP/98 only)
   compTextGroup.style.display = isWin ? '' : 'none';
-
   updateResolutionOptions();
 }
 
 function updateResolutionOptions() {
-  const s = getStyle();
-  const currentVal = resSelect.value;
+  var s = getStyle();
+  var currentVal = resSelect.value;
   if (s === 'ios') {
     resSelect.innerHTML = '<option value="1080x1920">1080 \\u00d7 1920</option><option value="750x1334">750 \\u00d7 1334</option><option value="1290x2796">1290 \\u00d7 2796</option>';
   } else {
     resSelect.innerHTML = '<option value="1920x1080">1920 \\u00d7 1080</option><option value="2560x1440">2560 \\u00d7 1440</option><option value="1440x900">1440 \\u00d7 900</option><option value="1280x800">1280 \\u00d7 800</option>';
   }
-  // Restore previous value if it exists in the new options
-  const exists = Array.from(resSelect.options).some(o => o.value === currentVal);
+  var exists = Array.from(resSelect.options).some(function(o) { return o.value === currentVal; });
   if (exists) resSelect.value = currentVal;
 }
 
+// ── Options ──
+
 function getComponents() {
-  const s = getStyle();
-  const comp = {};
+  var s = getStyle();
+  var comp = {};
   if (s === 'macos') {
     if (!tlCheck.checked) comp.hideTrafficLights = true;
   } else if (s === 'windows-xp' || s === 'windows-98') {
@@ -842,43 +1160,45 @@ function getComponents() {
 }
 
 function getExportFormat() {
-  return document.querySelector('input[name="format"]:checked')?.value || 'mp4';
+  var checked = document.querySelector('input[name="format"]:checked');
+  return checked ? checked.value : 'mp4';
 }
 
 function getOptions() {
-  const [w, h] = resSelect.value.split('x').map(Number);
-  const format = getExportFormat();
+  var parts = resSelect.value.split('x').map(Number);
+  var format = getExportFormat();
   return {
     style: getStyle(),
     title: titleInput.value,
     url: urlInput.value,
-    resolution: { width: w, height: h },
+    resolution: { width: parts[0], height: parts[1] },
     offsetY: parseInt(offsetSlider.value, 10),
-    wallpaper: wallpaperCustom.checked ? wallpaperColor.value : '',
+    wallpaper: wallpaperActive ? wallpaperColor.value : '',
     components: getComponents(),
     exportFormat: format,
     gifOptions: format === 'gif' ? {
       frameRate: parseInt(gifFps.value, 10),
       sizePreset: gifSize.value,
-      loop: true,
-    } : undefined,
+      loop: true
+    } : undefined
   };
 }
 
+// ── Preview ──
+
 function updatePreview() {
   if (!current) return;
-  const opts = getOptions();
-  const params = new URLSearchParams({
+  var opts = getOptions();
+  var params = new URLSearchParams({
     style: opts.style,
     title: opts.title,
     url: opts.url,
     resWidth: String(opts.resolution.width),
     resHeight: String(opts.resolution.height),
     offsetY: String(opts.offsetY),
-    wallpaper: opts.wallpaper,
+    wallpaper: opts.wallpaper
   });
-  // Add component params (only non-defaults to keep URL clean)
-  const comp = opts.components;
+  var comp = opts.components;
   if (comp.hideAddressBar) params.set('hideAddressBar', 'true');
   if (comp.hideStatusBar) params.set('hideStatusBar', 'true');
   if (comp.hideTaskbar) params.set('hideTaskbar', 'true');
@@ -889,78 +1209,107 @@ function updatePreview() {
 
   previewFrame.src = '/preview/' + current + '?' + params;
 
-  // Scale iframe to fit the preview pane using CSS transform
-  const pane = previewPane;
-  const maxW = pane.clientWidth - 40;
-  const maxH = pane.clientHeight - 40;
-  let fw, fh;
+  var pane = previewPane;
+  var maxW = pane.clientWidth - 48;
+  var maxH = pane.clientHeight - 48;
+  var fw, fh;
   if (opts.style === 'none') {
-    const vp = manifest?.capture?.viewport || { width: 1280, height: 720 };
+    var vp = (manifest && manifest.capture && manifest.capture.viewport) || { width: 1280, height: 720 };
     fw = vp.width;
     fh = vp.height;
   } else {
     fw = opts.resolution.width;
     fh = opts.resolution.height;
   }
-  const scale = Math.min(maxW / fw, maxH / fh, 1);
+  var scale = Math.min(maxW / fw, maxH / fh);
+  var scaledW = fw * scale;
+  var scaledH = fh * scale;
   previewFrame.style.width = fw + 'px';
   previewFrame.style.height = fh + 'px';
   previewFrame.style.transform = 'scale(' + scale + ')';
-  previewFrame.style.transformOrigin = 'center center';
+  previewFrame.style.transformOrigin = '0 0';
+  previewFrame.style.left = ((pane.clientWidth - scaledW) / 2) + 'px';
+  previewFrame.style.top = ((pane.clientHeight - scaledH) / 2) + 'px';
 }
 
-// Debounce text inputs
-let debounce;
+// ── Status ──
+
+function showInfo() {
+  if (!current) return;
+  var res = resSelect.value.replace('x', '\\u00d7');
+  statusEl.className = 'status-bar';
+  statusEl.textContent = current + ' \\u00b7 ' + res + ' \\u00b7 ' + getStyle();
+}
+
+// ── Debounce ──
+
+var debounce;
 function scheduleUpdate() {
   clearTimeout(debounce);
-  debounce = setTimeout(updatePreview, 300);
+  debounce = setTimeout(function() { updatePreview(); showInfo(); }, 300);
 }
 
-recSelect.addEventListener('change', (e) => selectRecording(e.target.value));
-document.querySelectorAll('input[name="style"]').forEach(r => {
-  r.addEventListener('change', () => { toggleStyleControls(); updatePreview(); });
-});
+// ── Event listeners ──
+
+recSelect.addEventListener('change', function(e) { selectRecording(e.target.value); });
+
 titleInput.addEventListener('input', scheduleUpdate);
 urlInput.addEventListener('input', scheduleUpdate);
-resSelect.addEventListener('change', updatePreview);
-offsetSlider.addEventListener('input', () => {
+resSelect.addEventListener('change', function() { updatePreview(); showInfo(); });
+
+offsetSlider.addEventListener('input', function() {
   offsetValue.textContent = offsetSlider.value + 'px';
   scheduleUpdate();
 });
-wallpaperColor.addEventListener('input', () => { if (wallpaperCustom.checked) scheduleUpdate(); });
-wallpaperCustom.addEventListener('change', updatePreview);
 
-// Component control listeners
-[tlCheck, abCheck, sbCheck, tbCheck].forEach(cb => cb.addEventListener('change', updatePreview));
-[titleSuffixInput, statusTextInput, clockTextInput].forEach(inp => inp.addEventListener('input', scheduleUpdate));
+wallpaperColor.addEventListener('input', function() {
+  wallpaperActive = true;
+  wallpaperLabel.textContent = wallpaperColor.value;
+  scheduleUpdate();
+});
+
+wallpaperReset.addEventListener('click', function() {
+  wallpaperActive = false;
+  wallpaperLabel.textContent = 'Default';
+  updatePreview();
+});
+
+[tlCheck, abCheck, sbCheck, tbCheck].forEach(function(cb) {
+  cb.addEventListener('change', updatePreview);
+});
+
+[titleSuffixInput, statusTextInput, clockTextInput].forEach(function(inp) {
+  inp.addEventListener('input', scheduleUpdate);
+});
 
 // Format toggle
-document.querySelectorAll('input[name="format"]').forEach(r => {
-  r.addEventListener('change', () => {
-    const fmt = getExportFormat();
+document.querySelectorAll('#format-group .format-option').forEach(function(label) {
+  var radio = label.querySelector('input');
+  radio.addEventListener('change', function() {
+    document.querySelectorAll('#format-group .format-option').forEach(function(l) {
+      l.classList.toggle('active', l.querySelector('input').checked);
+    });
+    var fmt = getExportFormat();
     gifOptionsEl.style.display = fmt === 'gif' ? '' : 'none';
-    renderBtn.textContent = fmt === 'gif' ? 'Save \\u0026 Render GIF' : 'Save \\u0026 Render MP4';
+    renderBtn.textContent = fmt === 'gif' ? 'Render GIF' : 'Render MP4';
   });
 });
 
-// Zoom depth slider
-zoomDepthSlider.addEventListener('input', () => {
+zoomDepthSlider.addEventListener('input', function() {
   zoomDepthValue.textContent = zoomDepthSlider.value;
 });
 
-renderBtn.addEventListener('click', async () => {
+// Render
+renderBtn.addEventListener('click', async function() {
   if (!current) return;
   renderBtn.disabled = true;
   statusEl.className = 'status-bar loading';
-  statusEl.innerHTML = '<span class="spinner"></span>Rendering\u2026';
+  statusEl.innerHTML = '<span class="spinner"></span>Rendering\\u2026';
 
   try {
-    const opts = getOptions();
-
-    // Pass zoom regions from manifest (or empty if disabled)
-    const zoomRegions = zoomEnabled.checked ? (manifest?.capture?.zoomRegions || []) : [];
-
-    const res = await fetch('/api/recordings/' + current + '/render', {
+    var opts = getOptions();
+    var zoomRegions = zoomEnabled.checked ? ((manifest && manifest.capture && manifest.capture.zoomRegions) || []) : [];
+    var res = await fetch('/api/recordings/' + current + '/render', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -973,17 +1322,17 @@ renderBtn.addEventListener('click', async () => {
         components: opts.components,
         zoomRegions: zoomRegions.length > 0 ? zoomRegions : undefined,
         exportFormat: opts.exportFormat !== 'mp4' ? opts.exportFormat : undefined,
-        gifOptions: opts.gifOptions,
-      }),
+        gifOptions: opts.gifOptions
+      })
     });
-    const result = await res.json();
-    const fmt = opts.exportFormat;
+    var result = await res.json();
+    var fmt = opts.exportFormat;
     if (result.mp4Path) {
       statusEl.className = 'status-bar success';
-      statusEl.textContent = 'Saved \\u2192 ' + result.mp4Path + (fmt === 'gif' ? ' + .gif' : '');
+      statusEl.textContent = 'Success: ' + result.mp4Path + (fmt === 'gif' ? ' + .gif' : '');
     } else {
       statusEl.className = 'status-bar error';
-      statusEl.textContent = 'Render failed \\u2014 is ffmpeg installed?';
+      statusEl.textContent = 'Error: Render failed. Check that ffmpeg is installed and accessible.';
     }
   } catch (err) {
     statusEl.className = 'status-bar error';
@@ -993,7 +1342,34 @@ renderBtn.addEventListener('click', async () => {
   }
 });
 
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  var meta = e.metaKey || e.ctrlKey;
+  var tag = document.activeElement && document.activeElement.tagName;
+  var inText = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+  if (meta && e.key === 'Enter') {
+    e.preventDefault();
+    renderBtn.click();
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.section').forEach(function(s) {
+      s.classList.add('collapsed');
+    });
+    if (document.activeElement) document.activeElement.blur();
+    return;
+  }
+
+  if (!inText && !meta && e.key >= '1' && e.key <= '7') {
+    var idx = parseInt(e.key) - 1;
+    if (STYLES[idx]) selectStyle(STYLES[idx].value);
+  }
+});
+
 window.addEventListener('resize', updatePreview);
+renderStyleList('macos');
 toggleStyleControls();
 loadRecordings();
 </script>

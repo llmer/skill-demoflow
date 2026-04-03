@@ -17,17 +17,17 @@ viewport: 1280x720
 3. Start Studio server (http://localhost:3274)
 4. Open Studio in the browser
 5. The recording dropdown should show "sample-app"
-6. Select the macOS frame style (default)
+6. The Frame section is expanded — macOS style is active by default
 7. [pause: 2s]
-8. Switch to Windows XP frame — preview updates live
+8. Click the "Windows XP" option in the style list — preview updates live
 9. [pause: 2s]
-10. Switch to Windows 98 frame
+10. Click the "Windows 98" option in the style list
 11. [pause: 2s]
-12. Switch to VS Code frame
+12. Click the "VS Code" option in the style list
 13. [pause: 2s]
-14. Switch back to macOS frame
+14. Click the "macOS" option to switch back
 15. Change the window title to "My App Demo"
 16. [pause: 1s]
-17. Click "Save & Render MP4"
-18. Wait for render to complete (status bar shows success)
+17. Click the amber "Render MP4" button in the topbar
+18. Wait for render to complete (status bar shows green success message)
 19. [pause: 3s]

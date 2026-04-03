@@ -4,40 +4,63 @@ skill-demoflow is a Claude Code skill that generates demo videos from natural la
 
 ## DemoFlow Studio (http://localhost:3274)
 
-The Studio is a single-page web app served by a Node.js HTTP server.
+The Studio is a single-page web app served by a Node.js HTTP server. Industrial/utilitarian aesthetic with amber accents, JetBrains Mono labels, grain texture overlay.
 
 ### Layout
 
-- **Top bar**: "DemoFlow Studio" title + recording dropdown `<select id="recording-select">`
-- **Preview pane** (left): Large iframe showing the framed video preview
-- **Controls panel** (right, 280px sidebar): All adjustment controls
+- **Top bar** (48px): "DemoFlow Studio" title + `/` separator + recording dropdown + keyboard hint + amber "Render MP4" button
+- **Preview pane** (left, flex:1): Iframe showing framed video preview, scales to fill available space
+- **Controls sidebar** (right, 260px): Collapsible sections with chevron disclosure triangles
+- **Status bar** (bottom, full-width): Shows recording info or render progress
 
-### Controls Panel
+### Controls Sidebar — Collapsible Sections
 
-- **Frame Style**: Radio group with options: macOS, XP, 98, Terminal, VS Code, iPhone, None
-  - Selectors: `input[name="style"][value="macos"]`, etc.
-- **Window Title**: Text input `#title-input`
+#### Frame (expanded by default)
+- **Style list**: Vertical radio list with amber left-border accent on active item
+  - Options: macOS (Sonoma), Windows XP, Windows 98, Terminal (macOS), VS Code, iPhone (iOS), None (Raw)
+  - Each option is a `.style-option` div with `data-style` attribute
+- **Title**: Text input `#title-input`
+- **Resolution**: Select dropdown `#resolution-select`
+
+#### Appearance (collapsed by default)
 - **Address Bar URL**: Text input `#url-input` (visible for XP/98 styles only)
 - **Components**: Checkboxes for Traffic Lights, Address Bar, Status Bar, Taskbar
   - `#tl-check`, `#ab-check`, `#sb-check`, `#tb-check`
-  - Visibility depends on frame style (e.g., taskbar only for Windows styles)
+  - Visibility depends on frame style
 - **Component Text**: Inputs for title suffix, status text, clock text (XP/98 only)
-  - `#title-suffix-input`, `#status-text-input`, `#clock-text-input`
-- **Desktop Resolution**: Select dropdown `#resolution-select`
-  - Landscape: 1920x1080, 2560x1440, 1440x900, 1280x800
-  - Portrait (iOS): 1080x1920, 750x1334, 1290x2796
-- **Window Offset Y**: Range slider `#offset-slider` (-200 to 200)
-- **Wallpaper Color**: Color picker `#wallpaper-color` + "Custom" checkbox `#wallpaper-custom`
-- **Render Button**: `button#render-btn` "Save & Render MP4"
-- **Status bar**: `#status` shows render progress/result
+- **Window Offset**: Range slider `#offset-slider` (-200 to 200)
+- **Wallpaper**: Color picker `#wallpaper-color` — auto-activates on pick, "Reset" button to revert
+
+#### Effects (collapsed by default)
+- **Zoom Regions**: Read-only list (auto-detected), enable checkbox, depth slider
+
+#### Export (collapsed by default)
+- **Format**: Segmented toggle MP4/GIF
+- **GIF Options**: FPS and size selects (visible when GIF selected)
+
+### Key Selectors
+
+- Recording dropdown: `#recording-select`
+- Render button: `button#render-btn` (in topbar, amber background)
+- Preview iframe: `#preview-frame`
+- Status bar: `#status`
+- Sections: `#section-frame`, `#section-appearance`, `#section-effects`, `#section-export`
+- Section headers: `.section-header` (click to toggle)
+- Style options: `.style-option[data-style="macos"]`, etc.
+
+### Keyboard Shortcuts
+
+- `Cmd+Enter` — Render
+- `1-7` — Quick frame style selection
+- `Escape` — Collapse all sections
 
 ### Behavior
 
 - Selecting a recording loads its manifest and populates controls
 - Changing any control updates the live iframe preview (debounced for text inputs)
-- "Save & Render MP4" POSTs to `/api/recordings/{name}/render` and shows the output path
-- Preview iframe scales to fit the pane using CSS transform
-- Empty state shown when no recordings exist
+- Render button POSTs to `/api/recordings/{name}/render` and shows output path in status bar
+- Preview iframe uses absolute positioning + CSS transform scale (no cap — fills available space)
+- Only Frame section is expanded by default; others collapse to reduce cognitive load
 
 ### API Endpoints
 
@@ -45,7 +68,7 @@ The Studio is a single-page web app served by a Node.js HTTP server.
 - `GET /api/recordings/{name}/manifest` — get capture manifest
 - `POST /api/recordings/{name}/render` — re-render with new options
 - `GET /preview/{name}?style=&title=&...` — live frame preview HTML
-- `GET /files/{name}/{file}` — serve recording files (video, HAR, screenshots)
+- `GET /files/{name}/{file}` — serve recording files
 
 ## CLI Entry Points
 

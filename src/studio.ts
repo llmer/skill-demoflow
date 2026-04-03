@@ -967,6 +967,7 @@ var gifSize = g('gif-size');
 var current = null;
 var manifest = null;
 var wallpaperActive = false;
+var showingRendered = false;
 
 var STYLES = [
   { value: 'macos', name: 'macOS', desc: 'Sonoma' },
@@ -1186,8 +1187,40 @@ function getOptions() {
 
 // ── Preview ──
 
+function showRenderedVideo(mp4Path) {
+  var pane = previewPane;
+  var maxW = pane.clientWidth - 48;
+  var maxH = pane.clientHeight - 48;
+  // Use the rendered MP4 resolution (frame resolution)
+  var opts = getOptions();
+  var fw = opts.resolution.width;
+  var fh = opts.resolution.height;
+  if (opts.style === 'none') {
+    var vp = (manifest && manifest.capture && manifest.capture.viewport) || { width: 1280, height: 720 };
+    fw = vp.width;
+    fh = vp.height;
+  }
+  var scale = Math.min(maxW / fw, maxH / fh);
+  var scaledW = fw * scale;
+  var scaledH = fh * scale;
+
+  // Swap iframe to a simple page playing the rendered MP4
+  previewFrame.src = 'data:text/html,' + encodeURIComponent(
+    '<!DOCTYPE html><html><head><style>*{margin:0}body{background:#000;display:flex;align-items:center;justify-content:center;width:' + fw + 'px;height:' + fh + 'px}</style></head><body>' +
+    '<video src="/files/' + current + '/recording.mp4?t=' + Date.now() + '" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:contain"></video></body></html>'
+  );
+  previewFrame.style.width = fw + 'px';
+  previewFrame.style.height = fh + 'px';
+  previewFrame.style.transform = 'scale(' + scale + ')';
+  previewFrame.style.transformOrigin = '0 0';
+  previewFrame.style.left = ((pane.clientWidth - scaledW) / 2) + 'px';
+  previewFrame.style.top = ((pane.clientHeight - scaledH) / 2) + 'px';
+  showingRendered = true;
+}
+
 function updatePreview() {
   if (!current) return;
+  showingRendered = false;
   var opts = getOptions();
   var params = new URLSearchParams({
     style: opts.style,
@@ -1330,6 +1363,7 @@ renderBtn.addEventListener('click', async function() {
     if (result.mp4Path) {
       statusEl.className = 'status-bar success';
       statusEl.textContent = 'Success: ' + result.mp4Path + (fmt === 'gif' ? ' + .gif' : '');
+      showRenderedVideo(result.mp4Path);
     } else {
       statusEl.className = 'status-bar error';
       statusEl.textContent = 'Error: Render failed. Check that ffmpeg is installed and accessible.';

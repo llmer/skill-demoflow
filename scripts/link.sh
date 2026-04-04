@@ -31,7 +31,7 @@ for TARGET in "$@"; do
   # Ensure the target has a skills directory
   if [ ! -d "$AGENTS_DIR" ] && [ ! -d "$CLAUDE_DIR" ]; then
     echo "SKIP: $TARGET -- no .agents/skills/ or .claude/skills/ found"
-    echo "      Run 'npx skills add llmer/llmer-demoflow' in that repo first."
+    echo "      Run 'npx skills add llmer/skill-demoflow' in that repo first."
     continue
   fi
 

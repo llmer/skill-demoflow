@@ -20,7 +20,7 @@ No selectors in your scenario files. No test framework boilerplate. Claude figur
 ### 1. Install the skill
 
 ```bash
-npx skills add llmer/llmer-demoflow
+npx skills add llmer/skill-demoflow
 ```
 
 This installs the `/demo` skill into your project via [skills.sh](https://skills.sh/).
@@ -261,7 +261,7 @@ If you prefer to set up without `/demo init`:
 
 ```bash
 # Install skill + runtime
-npx skills add llmer/llmer-demoflow
+npx skills add llmer/skill-demoflow
 npm install llmer-demoflow
 npx playwright install chromium
 
@@ -286,8 +286,8 @@ Then edit the files to match your app.
 ### Setup
 
 ```bash
-git clone https://github.com/llmer/llmer-demoflow.git
-cd llmer-demoflow
+git clone https://github.com/llmer/skill-demoflow.git
+cd skill-demoflow
 npm install
 npm run build
 ```

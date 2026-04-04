@@ -1,5 +1,5 @@
 {
-  "name": "skill-demoflow",
+  "name": "llmer-demoflow",
   "version": "0.1.0",
   "description": "Claude Code skill — browser automation with HAR + video recording from natural language scenarios",
   "type": "module",

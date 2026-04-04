@@ -56,7 +56,7 @@ else
 fi
 ```
 
-If `SKILL_LIB` is `missing`: the skill was not installed correctly. Tell the user to run `npx skills add llmer/skill-demoflow`.
+If `SKILL_LIB` is `missing`: the skill was not installed correctly. Tell the user to run `npx skills add llmer/llmer-demoflow`.
 
 If `PLAYWRIGHT` is `missing`: run `npm install --save-dev @playwright/test`.
 

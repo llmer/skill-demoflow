@@ -1,4 +1,4 @@
-# skill-demoflow
+# llmer-demoflow
 
 A Claude Code skill for generating demo videos and acceptance tests from natural language. Write what a user does in plain English, point it at an environment, and get a HAR file + MP4 with click visualization.
 
@@ -20,7 +20,7 @@ No selectors in your scenario files. No test framework boilerplate. Claude figur
 ### 1. Install the skill
 
 ```bash
-npx skills add llmer/skill-demoflow
+npx skills add llmer/llmer-demoflow
 ```
 
 This installs the `/demo` skill into your project via [skills.sh](https://skills.sh/).
@@ -28,7 +28,7 @@ This installs the `/demo` skill into your project via [skills.sh](https://skills
 ### 2. Install the runtime library
 
 ```bash
-npm install skill-demoflow
+npm install llmer-demoflow
 npx playwright install chromium
 ```
 
@@ -261,16 +261,16 @@ If you prefer to set up without `/demo init`:
 
 ```bash
 # Install skill + runtime
-npx skills add llmer/skill-demoflow
-npm install skill-demoflow
+npx skills add llmer/llmer-demoflow
+npm install llmer-demoflow
 npx playwright install chromium
 
 # Create directory structure
 mkdir -p .demoflow/targets .demoflow/scenarios
 
 # Create files (use examples/ as templates)
-cp node_modules/skill-demoflow/examples/targets/local.md .demoflow/targets/local.md
-cp node_modules/skill-demoflow/examples/context.md .demoflow/context.md
+cp node_modules/llmer-demoflow/examples/targets/local.md .demoflow/targets/local.md
+cp node_modules/llmer-demoflow/examples/context.md .demoflow/context.md
 ```
 
 Then edit the files to match your app.
@@ -286,8 +286,8 @@ Then edit the files to match your app.
 ### Setup
 
 ```bash
-git clone https://github.com/llmer/skill-demoflow.git
-cd skill-demoflow
+git clone https://github.com/llmer/llmer-demoflow.git
+cd llmer-demoflow
 npm install
 npm run build
 ```

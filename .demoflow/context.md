@@ -1,6 +1,6 @@
 # App Context
 
-skill-demoflow is a Claude Code skill that generates demo videos from natural language scenarios. It has a web UI called DemoFlow Studio for adjusting frame styles on existing recordings.
+llmer-demoflow is a Claude Code skill that generates demo videos from natural language scenarios. It has a web UI called DemoFlow Studio for adjusting frame styles on existing recordings.
 
 ## DemoFlow Studio (http://localhost:3274)
 

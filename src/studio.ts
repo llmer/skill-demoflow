@@ -121,6 +121,20 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, outputDi
     return
   }
 
+  // Rendered video preview (shows the final MP4 after render)
+  const renderedMatch = pathname.match(/^\/rendered\/([^/]+)$/)
+  if (renderedMatch) {
+    const name = renderedMatch[1]
+    const manifest = readManifest(join(outputDir, name))
+    const resolution = manifest?.render?.resolution ?? { width: 1920, height: 1080 }
+    const w = resolution.width
+    const h = resolution.height
+    const t = url.searchParams.get('t') ?? ''
+    res.writeHead(200, { 'Content-Type': 'text/html' })
+    res.end(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0}body{background:#000;width:${w}px;height:${h}px;display:flex;align-items:center;justify-content:center}</style></head><body><video src="/files/${name}/recording.mp4?t=${t}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:contain"></video></body></html>`)
+    return
+  }
+
   // Serve recording files (video, HAR, screenshots)
   const fileMatch = pathname.match(/^\/files\/([^/]+)\/(.+)$/)
   if (fileMatch) {
@@ -1204,11 +1218,8 @@ function showRenderedVideo(mp4Path) {
   var scaledW = fw * scale;
   var scaledH = fh * scale;
 
-  // Swap iframe to a simple page playing the rendered MP4
-  previewFrame.src = 'data:text/html,' + encodeURIComponent(
-    '<!DOCTYPE html><html><head><style>*{margin:0}body{background:#000;display:flex;align-items:center;justify-content:center;width:' + fw + 'px;height:' + fh + 'px}</style></head><body>' +
-    '<video src="/files/' + current + '/recording.mp4?t=' + Date.now() + '" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:contain"></video></body></html>'
-  );
+  // Swap iframe to the server-rendered preview (same origin, can load MP4)
+  previewFrame.src = '/rendered/' + current + '?t=' + Date.now();
   previewFrame.style.width = fw + 'px';
   previewFrame.style.height = fh + 'px';
   previewFrame.style.transform = 'scale(' + scale + ')';
@@ -1336,8 +1347,23 @@ zoomDepthSlider.addEventListener('input', function() {
 renderBtn.addEventListener('click', async function() {
   if (!current) return;
   renderBtn.disabled = true;
+  var startTime = Date.now();
+  var hasZoom = zoomEnabled.checked && ((manifest && manifest.capture && manifest.capture.zoomRegions) || []).length > 0;
+  var stages = hasZoom ? ['Converting with zoom', 'Compositing frame', 'Finalizing'] : ['Converting video', 'Compositing frame', 'Finalizing'];
+  var stageIdx = 0;
+
   statusEl.className = 'status-bar loading';
-  statusEl.innerHTML = '<span class="spinner"></span>Rendering\\u2026';
+  statusEl.innerHTML = '<span class="spinner"></span>' + stages[0] + '\\u2026';
+
+  // Tick the timer every second and rotate stages based on elapsed time
+  var ticker = setInterval(function() {
+    var elapsed = Math.round((Date.now() - startTime) / 1000);
+    // Estimate stage transitions: conversion ~60%, frame ~30%, finalize ~10%
+    if (elapsed > 5 && stageIdx === 0) stageIdx = 1;
+    if (elapsed > 15 && stageIdx === 1) stageIdx = 2;
+    var stage = stageIdx < stages.length ? stages[stageIdx] : stages[stages.length - 1];
+    statusEl.innerHTML = '<span class="spinner"></span>' + stage + '\\u2026 ' + elapsed + 's';
+  }, 1000);
 
   try {
     var opts = getOptions();
@@ -1358,17 +1384,20 @@ renderBtn.addEventListener('click', async function() {
         gifOptions: opts.gifOptions
       })
     });
+    clearInterval(ticker);
     var result = await res.json();
+    var elapsed = Math.round((Date.now() - startTime) / 1000);
     var fmt = opts.exportFormat;
     if (result.mp4Path) {
       statusEl.className = 'status-bar success';
-      statusEl.textContent = 'Success: ' + result.mp4Path + (fmt === 'gif' ? ' + .gif' : '');
+      statusEl.textContent = 'Success: ' + result.mp4Path + ' (' + elapsed + 's)';
       showRenderedVideo(result.mp4Path);
     } else {
       statusEl.className = 'status-bar error';
       statusEl.textContent = 'Error: Render failed. Check that ffmpeg is installed and accessible.';
     }
   } catch (err) {
+    clearInterval(ticker);
     statusEl.className = 'status-bar error';
     statusEl.textContent = 'Error: ' + err.message;
   } finally {

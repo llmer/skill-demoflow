@@ -13,11 +13,11 @@
   },
   "files": [
     "dist",
-    "demo",
+    "llmer-demo",
     "examples"
   ],
   "scripts": {
-    "build": "tsc && cp dist/*.js dist/*.d.ts demo/lib/",
+    "build": "tsc && cp dist/*.js dist/*.d.ts llmer-demo/lib/",
     "dev": "node scripts/dev.mjs",
     "link": "bash scripts/link.sh",
     "studio": "node dist/studio.js"

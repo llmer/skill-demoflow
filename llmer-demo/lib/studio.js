@@ -764,7 +764,7 @@ function studioHtml() {
   <div class="preview-pane" id="preview-pane">
     <div class="empty-state" id="empty-state">
       <h2>No recordings</h2>
-      <p>Run a scenario with /demo to create a recording,<br>then come back here to adjust the frame.</p>
+      <p>Run a scenario with /llmer-demo to create a recording,<br>then come back here to adjust the frame.</p>
     </div>
     <iframe id="preview-frame" style="display:none"></iframe>
   </div>

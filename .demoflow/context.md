@@ -73,7 +73,7 @@ The Studio is a single-page web app served by a Node.js HTTP server. Industrial/
 ## CLI Entry Points
 
 - `npm run studio` or `npx tsx src/studio.ts` — launches Studio
-- `npm run build` — compiles TypeScript to dist/ and copies to demo/lib/
+- `npm run build` — compiles TypeScript to dist/ and copies to llmer-demo/lib/
 - `npm run dev` — watch mode with auto-copy
 
 ## Output Structure

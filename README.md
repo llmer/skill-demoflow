@@ -3,7 +3,7 @@
 A Claude Code skill for generating demo videos and acceptance tests from natural language. Write what a user does in plain English, point it at an environment, and get a HAR file + MP4 with click visualization.
 
 ```
-/demo workspace-switching --target production
+/llmer-demo workspace-switching --target production
 ```
 
 ## What it does
@@ -23,7 +23,7 @@ No selectors in your scenario files. No test framework boilerplate. Claude figur
 npx skills add llmer/skill-demoflow
 ```
 
-This installs the `/demo` skill into your project via [skills.sh](https://skills.sh/).
+This installs the `/llmer-demo` skill into your project via [skills.sh](https://skills.sh/).
 
 ### 2. Install the runtime library
 
@@ -37,7 +37,7 @@ npx playwright install chromium
 Run the init skill to have Claude explore your project and scaffold everything:
 
 ```
-/demo init
+/llmer-demo init
 ```
 
 This will:
@@ -52,9 +52,9 @@ You can also set up manually — see [Manual Setup](#manual-setup) below.
 ### 4. Run a demo
 
 ```
-/demo workspace-switching
-/demo workspace-switching --target production
-/demo "log in and create a new project"
+/llmer-demo workspace-switching
+/llmer-demo workspace-switching --target production
+/llmer-demo "log in and create a new project"
 ```
 
 ## Natural Language Usage
@@ -63,16 +63,16 @@ You don't need to write config files by hand. Just describe what you want:
 
 ```bash
 # Scaffold everything — Claude explores your project and generates context, targets, and scenarios
-/demo init
+/llmer-demo init
 
 # Add a target by describing your environment
-/demo "add a local dev target at localhost:3000 with Mailpit on port 8025 for OTP"
+/llmer-demo "add a local dev target at localhost:3000 with Mailpit on port 8025 for OTP"
 
 # Add a scenario by describing the user journey
-/demo "add a scenario for user signup and first project creation"
+/llmer-demo "add a scenario for user signup and first project creation"
 
 # Run a demo from an inline description (no scenario file needed)
-/demo "log in and navigate to settings"
+/llmer-demo "log in and navigate to settings"
 ```
 
 ## How it works
@@ -114,7 +114,7 @@ After setup, your project will have:
     ├── onboarding.md       # User signup + first action
     └── core-workflow.md    # Main happy-path flow
 
-.claude/skills/demo/
+.claude/skills/llmer-demo/
 └── SKILL.md                # The skill definition (installed via skills.sh)
 ```
 
@@ -234,9 +234,9 @@ See [examples/context.md](examples/context.md) for a complete example.
 ### Via Claude Code skill
 
 ```
-/demo scenario-name                      # Uses default target from scenario
-/demo scenario-name --target production  # Override target
-/demo "describe what you want to do"     # Inline description (no scenario file)
+/llmer-demo scenario-name                      # Uses default target from scenario
+/llmer-demo scenario-name --target production  # Override target
+/llmer-demo "describe what you want to do"     # Inline description (no scenario file)
 ```
 
 ### Interactive prompts
@@ -257,7 +257,7 @@ output/workspace-switching/
 
 ## Manual Setup
 
-If you prefer to set up without `/demo init`:
+If you prefer to set up without `/llmer-demo init`:
 
 ```bash
 # Install skill + runtime
@@ -294,7 +294,7 @@ npm run build
 
 ### Dev workflow
 
-Start the watcher — it runs `tsc --watch` and auto-copies compiled output to `demo/lib/`:
+Start the watcher — it runs `tsc --watch` and auto-copies compiled output to `llmer-demo/lib/`:
 
 ```bash
 npm run dev
@@ -308,10 +308,10 @@ To test changes against a repo that already has `.demoflow/` initialized, link i
 npm run link ~/src/my-app
 ```
 
-This replaces the copied `.agents/skills/demo/` in the target repo with a symlink back to this repo's `demo/` directory. After linking:
+This replaces the copied `.agents/skills/llmer-demo/` in the target repo with a symlink back to this repo's `llmer-demo/` directory. After linking:
 
-- Edits to `src/*.ts` auto-compile to `demo/lib/` (via `npm run dev`) and are immediately visible
-- Edits to `demo/SKILL.md` are instant — no build step needed
+- Edits to `src/*.ts` auto-compile to `llmer-demo/lib/` (via `npm run dev`) and are immediately visible
+- Edits to `llmer-demo/SKILL.md` are instant — no build step needed
 
 You can link multiple repos at once:
 
@@ -325,9 +325,9 @@ npm run link ~/src/app-one ~/src/app-two
 
 | Command | Description |
 |---------|-------------|
-| `npm run build` | One-shot compile + copy to `demo/lib/` |
-| `npm run dev` | Watch mode: `tsc --watch` + auto-copy to `demo/lib/` |
-| `npm run link <repo>` | Symlink a target repo to `demo/` for live testing |
+| `npm run build` | One-shot compile + copy to `llmer-demo/lib/` |
+| `npm run dev` | Watch mode: `tsc --watch` + auto-copy to `llmer-demo/lib/` |
+| `npm run link <repo>` | Symlink a target repo to `llmer-demo/` for live testing |
 | `npm run studio` | Launch DemoFlow Studio at http://localhost:3274 |
 
 ## Examples

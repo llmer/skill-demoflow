@@ -1,5 +1,5 @@
 ---
-name: demo
+name: llmer-demo
 description: Run browser or terminal automation scenarios with video recording from natural language flow descriptions. Use when the user wants to generate demo videos, capture HAR files, record CLI tool demos, or run acceptance tests.
 argument-hint: "[scenario-name or inline description] [--target name]"
 allowed-tools: Bash, Read, Write, Glob, Grep, Agent
@@ -13,7 +13,7 @@ You generate and run Playwright automation scripts from natural language scenari
 
 ```bash
 # Check skill lib
-if [ -f ".claude/skills/demo/lib/index.js" ]; then
+if [ -f ".claude/skills/llmer-demo/lib/index.js" ]; then
   echo "SKILL_LIB: ready"
 else
   echo "SKILL_LIB: missing"
@@ -52,7 +52,7 @@ if [ -d ".demoflow" ]; then
   echo "DEMOFLOW: initialized"
   ls .demoflow/scenarios/ 2>/dev/null | head -10
 else
-  echo "DEMOFLOW: not initialized (run /demo init)"
+  echo "DEMOFLOW: not initialized (run /llmer-demo init)"
 fi
 ```
 
@@ -85,7 +85,7 @@ When `$ARGUMENTS` is `init`, you explore the project and bootstrap `.demoflow/`.
 ### What to do
 
 1. **Ensure runtime dependencies** are installed:
-   - Verify the skill lib exists: `.claude/skills/demo/lib/index.js` (installed by `skills add`)
+   - Verify the skill lib exists: `.claude/skills/llmer-demo/lib/index.js` (installed by `skills add`)
    - Check if `@playwright/test` is in `package.json`. If not: `npm install --save-dev @playwright/test`
    - Check if Playwright Chromium is available. If not: `npx playwright install chromium`
 
@@ -157,7 +157,7 @@ If `--target <name>` is present in arguments, use that target. Otherwise use the
 Before generating and running a new script, check if a valid capture already exists:
 
 ```typescript
-import { isCaptureValid, render } from '../.claude/skills/demo/lib/index.js'
+import { isCaptureValid, render } from '../.claude/skills/llmer-demo/lib/index.js'
 
 if (isCaptureValid('output/scenario-name', { scenarioPath, targetPath })) {
   // Skip re-recording — just re-render with current options
@@ -176,7 +176,7 @@ Write a script to `scripts/demo-{scenario-name}.ts` (e.g. `demo-full-workflow.ts
 
 - Imports from the skill lib (path relative to `scripts/`):
   ```typescript
-  import { launchWithRecording, finalize, runSteps, isCaptureValid, render, type Step } from '../.claude/skills/demo/lib/index.js'
+  import { launchWithRecording, finalize, runSteps, isCaptureValid, render, type Step } from '../.claude/skills/llmer-demo/lib/index.js'
   ```
 - Config variables at the top from the **target config**: `BASE_URL`, `TEST_EMAIL`, timeouts
 - A `steps: Step[]` array that maps 1:1 from the scenario
@@ -228,7 +228,7 @@ Note: use `\${}` in template literals so JavaScript doesn't interpolate — the 
 #### Key pattern
 
 ```typescript
-import { launchWithRecording, finalize, runSteps, isCaptureValid, render, type Step } from '../.claude/skills/demo/lib/index.js'
+import { launchWithRecording, finalize, runSteps, isCaptureValid, render, type Step } from '../.claude/skills/llmer-demo/lib/index.js'
 
 const BASE_URL = '...'         // from target
 const TEST_EMAIL = '...'       // from target
@@ -315,7 +315,7 @@ After reporting results, ask the user if they'd like to adjust the video. Presen
 If the user picks a re-render option, call `render()` on the existing capture (no re-recording needed):
 
 ```typescript
-import { render } from '../.claude/skills/demo/lib/index.js'
+import { render } from '../.claude/skills/llmer-demo/lib/index.js'
 
 const result = await render('output/{scenario-name}', {
   frameStyle: 'windows-xp',  // or 'macos', 'none'
@@ -324,7 +324,7 @@ const result = await render('output/{scenario-name}', {
 console.log('Updated video:', result.mp4Path)
 ```
 
-If the user picks Studio, run: `node -e "import('./.claude/skills/demo/lib/studio.js').then(m => m.startStudio())"`
+If the user picks Studio, run: `node -e "import('./.claude/skills/llmer-demo/lib/studio.js').then(m => m.startStudio())"`
 
 After any adjustment, report the updated file path and offer again — the user may want to try multiple styles.
 
@@ -396,7 +396,7 @@ cd ~/projects/demo-app && git checkout demo-branch
 ### Terminal script pattern
 
 ```typescript
-import { launchTerminal, finalize, pauseRecording, resumeRecording } from '../.claude/skills/demo/lib/index.js'
+import { launchTerminal, finalize, pauseRecording, resumeRecording } from '../.claude/skills/llmer-demo/lib/index.js'
 
 const session = await launchTerminal({
   outputDir: 'output/cli-demo',
@@ -464,7 +464,7 @@ The session also has `browser`, `context`, `page`, `outputDir` like `RecordingSe
 
 ## Recording Library Reference
 
-All functions are exported from the skill lib at `.claude/skills/demo/lib/index.js`.
+All functions are exported from the skill lib at `.claude/skills/llmer-demo/lib/index.js`.
 
 ### `runSteps(session, steps, options?) → { vars }`
 
@@ -729,10 +729,10 @@ When the run finishes, report status:
 
 ## Example Invocations
 
-- `/demo init` — explore the project, generate context + targets + suggested scenarios
-- `/demo list` — show available scenarios and targets
-- `/demo workspace-switching` — runs `.demoflow/scenarios/workspace-switching.md` with its default target
-- `/demo workspace-switching --target production` — override to use production target
-- `/demo "log in and navigate to the dashboard"` — generates from inline description using default target
-- `/demo "run npm install then npm test and show the output"` — terminal demo from inline description (auto-detected: no URLs)
-- `/demo cli-onboarding` — runs a terminal scenario from `.demoflow/scenarios/cli-onboarding.md` (detected via `type: terminal` in Config)
+- `/llmer-demo init` — explore the project, generate context + targets + suggested scenarios
+- `/llmer-demo list` — show available scenarios and targets
+- `/llmer-demo workspace-switching` — runs `.demoflow/scenarios/workspace-switching.md` with its default target
+- `/llmer-demo workspace-switching --target production` — override to use production target
+- `/llmer-demo "log in and navigate to the dashboard"` — generates from inline description using default target
+- `/llmer-demo "run npm install then npm test and show the output"` — terminal demo from inline description (auto-detected: no URLs)
+- `/llmer-demo cli-onboarding` — runs a terminal scenario from `.demoflow/scenarios/cli-onboarding.md` (detected via `type: terminal` in Config)

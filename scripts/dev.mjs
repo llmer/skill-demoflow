@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Runs tsc --watch and auto-copies .js + .d.ts from dist/ to demo/lib/
+// Runs tsc --watch and auto-copies .js + .d.ts from dist/ to llmer-demo/lib/
 // so the skill distribution stays in sync during development.
 
 import { spawn } from 'child_process'
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DIST = join(ROOT, 'dist')
-const LIB = join(ROOT, 'demo', 'lib')
+const LIB = join(ROOT, 'llmer-demo', 'lib')
 
 if (!existsSync(LIB)) mkdirSync(LIB, { recursive: true })
 
@@ -34,14 +34,14 @@ function startWatcher() {
       const dst = join(LIB, filename)
       try {
         copyFileSync(src, dst)
-        console.log(`\x1b[36m[dev]\x1b[0m ${filename} -> demo/lib/`)
+        console.log(`\x1b[36m[dev]\x1b[0m ${filename} -> llmer-demo/lib/`)
       } catch (err) {
         // File may be mid-write, ignore transient errors
       }
     }
   })
 
-  console.log('\x1b[36m[dev]\x1b[0m Watching dist/ -> demo/lib/')
+  console.log('\x1b[36m[dev]\x1b[0m Watching dist/ -> llmer-demo/lib/')
 }
 
 startWatcher()

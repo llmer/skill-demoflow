@@ -1,4 +1,4 @@
-import { launchWithRecording, finalize, runSteps, isCaptureValid, render, type Step } from '../.claude/skills/demo/lib/index.js'
+import { launchWithRecording, finalize, runSteps, isCaptureValid, render, type Step } from '../.claude/skills/llmer-demo/lib/index.js'
 import { spawn } from 'child_process'
 
 const STUDIO_PORT = 3274
@@ -37,7 +37,7 @@ async function createSampleRecording() {
 
 function startStudioProcess(): Promise<ReturnType<typeof spawn>> {
   return new Promise((resolve, reject) => {
-    const child = spawn('node', ['-e', `import('./.claude/skills/demo/lib/studio.js').then(m => m.startStudio({ port: ${STUDIO_PORT}, outputDir: 'output' }))`], {
+    const child = spawn('node', ['-e', `import('./.claude/skills/llmer-demo/lib/studio.js').then(m => m.startStudio({ port: ${STUDIO_PORT}, outputDir: 'output' }))`], {
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd: process.cwd(),
     })

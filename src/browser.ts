@@ -72,6 +72,8 @@ export interface RecordingSession {
   _annotations: Annotation[]
   /** @internal scenario-level effect configuration */
   _effects: ScenarioEffects
+  /** @internal current caption text from `caption` steps; undefined until the first one */
+  _caption?: string
   /** @internal releases what the session opened besides the browser (terminal PTY and server) */
   _cleanup?: () => Promise<void>
 }

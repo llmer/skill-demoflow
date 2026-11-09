@@ -171,7 +171,47 @@ async function executeStep(ctx, raw, opts) {
             await step.fn(ctx);
             break;
         }
+        case 'caption': {
+            await setCaption(ctx, step.text);
+            break;
+        }
     }
+}
+// ── Captions ────────────────────────────────────────────────────────────────
+/**
+ * Draws the caption bar into the page, so it's in the recording. Each new
+ * document asks the runner for the current caption, so it survives navigations.
+ */
+const CAPTION_SCRIPT = `(() => {
+  const draw = (text) => {
+    let el = document.getElementById('__demoflow_caption');
+    if (!text) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = '__demoflow_caption';
+      Object.assign(el.style, {
+        position: 'fixed', left: '50%', bottom: '28px', transform: 'translateX(-50%)', zIndex: '2147483647',
+        maxWidth: '82%', padding: '12px 20px', borderRadius: '10px', textAlign: 'center', pointerEvents: 'none',
+        background: 'rgba(15, 23, 42, 0.94)', color: '#fff', font: '600 17px system-ui, sans-serif',
+        boxShadow: '0 8px 28px rgba(0, 0, 0, 0.35)',
+      });
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent = text;
+  };
+  window.__demoflow_drawCaption = draw;
+  const restore = () => window.__demoflow_currentCaption?.().then(draw, () => {});
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', restore);
+  else restore();
+})()`;
+async function setCaption(ctx, text) {
+    const { page, session } = ctx;
+    if (session._caption === undefined) {
+        await page.exposeFunction('__demoflow_currentCaption', () => session._caption ?? '');
+        await page.addInitScript(CAPTION_SCRIPT);
+    }
+    session._caption = text;
+    await page.evaluate(`${CAPTION_SCRIPT}; window.__demoflow_drawCaption(${JSON.stringify(text)})`);
 }
 // ── Annotation position resolution ─────────────────────────────────────────
 function resolveAnnotationPosition(ann, lastHit, viewport) {
@@ -259,7 +299,7 @@ export async function runSteps(session, steps, options = {}) {
             throw wrapped;
         }
         // Inter-step delay for video readability (skip for non-visual steps)
-        if (delay > 0 && !['pause', 'resume', 'save', 'exec'].includes(step.action)) {
+        if (delay > 0 && !['pause', 'resume', 'save', 'exec', 'caption'].includes(step.action)) {
             await new Promise((r) => setTimeout(r, delay));
         }
         const stepEndMs = Date.now() - session._startTime;
@@ -308,6 +348,7 @@ function describeStep(step) {
         case 'pause': return 'pause recording';
         case 'resume': return 'resume recording';
         case 'exec': return step.description ?? 'exec';
+        case 'caption': return step.text ? `caption "${step.text}"` : 'clear caption';
     }
 }
 //# sourceMappingURL=runner.js.map

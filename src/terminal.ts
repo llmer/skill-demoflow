@@ -106,7 +106,7 @@ export interface TerminalSession extends RecordingSession {
   _ws: WebSocket | null
   /** @internal prompt marker for detection */
   _promptMarker: string
-  /** @internal cleanup function — called before finalize */
+  /** @internal kills the PTY and closes the server — finalize() calls it */
   _cleanup: () => Promise<void>
 }
 
@@ -381,7 +381,10 @@ export async function launchTerminal(
       if (ptyProcess) {
         try { ptyProcess.kill() } catch { /* already dead */ }
       }
+      // ws v8 leaves open clients on close(), and server.close() waits for every connection
+      for (const client of wss.clients) client.terminate()
       wss.close()
+      server.closeAllConnections()
       await new Promise<void>((resolve) => server.close(() => resolve()))
     },
   }

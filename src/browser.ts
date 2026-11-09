@@ -72,6 +72,8 @@ export interface RecordingSession {
   _annotations: Annotation[]
   /** @internal scenario-level effect configuration */
   _effects: ScenarioEffects
+  /** @internal releases what the session opened besides the browser (terminal PTY and server) */
+  _cleanup?: () => Promise<void>
 }
 
 export interface RecordingResult {
@@ -369,6 +371,8 @@ export async function finalize(
   await page.close()
   await context.close()
   await browser.close()
+  // Without this a terminal session's PTY and server keep the process alive
+  await session._cleanup?.()
 
   const harPath = join(outputDir, 'recording.har')
   let webmPath: string | null = null

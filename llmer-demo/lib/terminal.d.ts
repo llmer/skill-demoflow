@@ -72,7 +72,7 @@ export interface TerminalSession extends RecordingSession {
     _ws: WebSocket | null;
     /** @internal prompt marker for detection */
     _promptMarker: string;
-    /** @internal cleanup function — called before finalize */
+    /** @internal kills the PTY and closes the server — finalize() calls it */
     _cleanup: () => Promise<void>;
 }
 /**

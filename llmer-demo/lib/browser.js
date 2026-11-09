@@ -239,6 +239,8 @@ export async function finalize(session, overrides) {
     await page.close();
     await context.close();
     await browser.close();
+    // Without this a terminal session's PTY and server keep the process alive
+    await session._cleanup?.();
     const harPath = join(outputDir, 'recording.har');
     let webmPath = null;
     let mp4Path = null;

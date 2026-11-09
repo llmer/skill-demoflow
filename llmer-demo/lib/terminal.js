@@ -259,7 +259,11 @@ export async function launchTerminal(options) {
                 }
                 catch { /* already dead */ }
             }
+            // ws v8 leaves open clients on close(), and server.close() waits for every connection
+            for (const client of wss.clients)
+                client.terminate();
             wss.close();
+            server.closeAllConnections();
             await new Promise((resolve) => server.close(() => resolve()));
         },
     };

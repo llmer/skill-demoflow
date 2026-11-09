@@ -9,6 +9,7 @@ import { chmodSync, mkdirSync, statSync } from 'fs';
 import { dirname, join } from 'path';
 import { generateTerminalHtml } from './terminal-page.js';
 import { chromium, requirePeer } from './peer.js';
+import { NAME_SHIM_SCRIPT } from './recorder.js';
 async function loadNodePty() {
     let peer;
     try {
@@ -162,6 +163,7 @@ export async function launchTerminal(options) {
         },
         viewport,
     });
+    await context.addInitScript(NAME_SHIM_SCRIPT);
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${serverPort}`);
     // Wait for xterm.js to initialize and connect

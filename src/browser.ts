@@ -2,7 +2,7 @@ import type { Browser, BrowserContext, Page } from '@playwright/test'
 import { chromium } from './peer.js'
 import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim, convertToMp4WithZoom, convertToMp4WithSpeed, convertToGif } from './recorder.js'
+import { CLICK_VIS_SCRIPT, NAME_SHIM_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim, convertToMp4WithZoom, convertToMp4WithSpeed, convertToGif } from './recorder.js'
 import { renderFrame, type DesktopFrameOptions, type FrameComponents } from './frame.js'
 import { getGitState, getLibHash, hashFile, readManifest, writeManifest, type Manifest } from './manifest.js'
 import { getDevicePreset } from './devices.js'
@@ -296,6 +296,7 @@ export async function launchWithRecording(
     } : {}),
   })
 
+  await context.addInitScript(NAME_SHIM_SCRIPT)
   const page = await context.newPage()
   await page.addInitScript(CLICK_VIS_SCRIPT)
   if (effects.cursorTelemetry) {

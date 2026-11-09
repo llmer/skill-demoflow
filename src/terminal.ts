@@ -13,6 +13,7 @@ import { generateTerminalHtml, type TerminalTheme } from './terminal-page.js'
 import type { RecordingSession } from './browser.js'
 import type { DesktopFrameOptions } from './frame.js'
 import { chromium, requirePeer } from './peer.js'
+import { NAME_SHIM_SCRIPT } from './recorder.js'
 
 // node-pty is an optional peer dependency — load it only for terminal demos
 import type { IPty } from 'node-pty'
@@ -274,6 +275,7 @@ export async function launchTerminal(
     viewport,
   })
 
+  await context.addInitScript(NAME_SHIM_SCRIPT)
   const page = await context.newPage()
   await page.goto(`http://127.0.0.1:${serverPort}`)
 

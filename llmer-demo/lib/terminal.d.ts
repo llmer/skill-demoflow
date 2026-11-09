@@ -5,7 +5,7 @@
  * then records the terminal session as video using the existing pipeline.
  */
 import { type Server } from 'http';
-import { type WebSocket } from 'ws';
+import type { WebSocket } from 'ws';
 import { type TerminalTheme } from './terminal-page.js';
 import type { RecordingSession } from './browser.js';
 import type { DesktopFrameOptions } from './frame.js';

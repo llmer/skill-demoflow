@@ -1,4 +1,5 @@
-import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test'
+import type { Browser, BrowserContext, Page } from '@playwright/test'
+import { chromium } from './peer.js'
 import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim, convertToMp4WithZoom, convertToMp4WithSpeed, convertToGif } from './recorder.js'

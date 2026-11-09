@@ -1,4 +1,4 @@
-import { type Browser, type BrowserContext, type Page } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { type DesktopFrameOptions, type FrameComponents } from './frame.js';
 import type { ElementHit, ZoomRegion, SpeedRegion, Annotation, ScenarioEffects, GifOptions } from './types.js';
 export interface RecordingOptions {

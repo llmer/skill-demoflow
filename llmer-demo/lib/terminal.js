@@ -4,14 +4,13 @@
  * Launches xterm.js in Playwright connected to a real PTY via node-pty,
  * then records the terminal session as video using the existing pipeline.
  */
-import { chromium } from '@playwright/test';
 import { createServer } from 'http';
 import { mkdirSync } from 'fs';
-import { WebSocketServer } from 'ws';
 import { generateTerminalHtml } from './terminal-page.js';
+import { chromium, requirePeer } from './peer.js';
 async function loadNodePty() {
     try {
-        return await import('node-pty');
+        return requirePeer('node-pty').mod;
     }
     catch {
         throw new Error('node-pty is required for terminal recording but not installed.\n' +
@@ -57,6 +56,7 @@ function sleep(ms) {
  */
 export async function launchTerminal(options) {
     const nodePty = await loadNodePty();
+    const { WebSocketServer } = requirePeer('ws').mod;
     const { outputDir, viewport = { width: 960, height: 600 }, headed = true, desktopFrame = true, scenarioPath, targetPath, shell = process.env.SHELL || '/bin/zsh', cwd = process.cwd(), env: extraEnv = {}, theme, fontSize = 14, fontFamily, typingSpeed = 50, } = options;
     const frameOptions = desktopFrame === false ? null :
         desktopFrame === true ? { style: 'macos-terminal' } :

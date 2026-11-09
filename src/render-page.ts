@@ -13,7 +13,7 @@
  */
 
 import { execSync, spawn } from 'child_process'
-import { chromium } from '@playwright/test'
+import { chromium } from './peer.js'
 import { generateAnnotationsDrawCode } from './annotations.js'
 import { computeZoomAtTime } from './zoom.js'
 import type { ZoomRegion, Annotation } from './types.js'

@@ -5,22 +5,22 @@
  * then records the terminal session as video using the existing pipeline.
  */
 
-import { chromium } from '@playwright/test'
 import { createServer, type Server } from 'http'
 import { mkdirSync } from 'fs'
-import { WebSocketServer, type WebSocket } from 'ws'
+import type { WebSocket } from 'ws'
 import { generateTerminalHtml, type TerminalTheme } from './terminal-page.js'
 import type { RecordingSession } from './browser.js'
 import type { DesktopFrameOptions } from './frame.js'
+import { chromium, requirePeer } from './peer.js'
 
-// node-pty is an optional peer dependency — import dynamically
+// node-pty is an optional peer dependency — load it only for terminal demos
 import type { IPty } from 'node-pty'
 
 type NodePtyModule = typeof import('node-pty')
 
 async function loadNodePty(): Promise<NodePtyModule> {
   try {
-    return await import('node-pty')
+    return requirePeer<NodePtyModule>('node-pty').mod
   } catch {
     throw new Error(
       'node-pty is required for terminal recording but not installed.\n' +
@@ -136,6 +136,7 @@ export async function launchTerminal(
   options: TerminalRecordingOptions,
 ): Promise<TerminalSession> {
   const nodePty = await loadNodePty()
+  const { WebSocketServer } = requirePeer<typeof import('ws')>('ws').mod
 
   const {
     outputDir,

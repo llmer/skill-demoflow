@@ -6,7 +6,8 @@
  */
 
 import { createServer, type Server } from 'http'
-import { mkdirSync } from 'fs'
+import { chmodSync, mkdirSync, statSync } from 'fs'
+import { dirname, join } from 'path'
 import type { WebSocket } from 'ws'
 import { generateTerminalHtml, type TerminalTheme } from './terminal-page.js'
 import type { RecordingSession } from './browser.js'
@@ -19,13 +20,34 @@ import type { IPty } from 'node-pty'
 type NodePtyModule = typeof import('node-pty')
 
 async function loadNodePty(): Promise<NodePtyModule> {
+  let peer: { mod: NodePtyModule; path: string }
   try {
-    return requirePeer<NodePtyModule>('node-pty').mod
+    peer = requirePeer<NodePtyModule>('node-pty')
   } catch {
     throw new Error(
       'node-pty is required for terminal recording but not installed.\n' +
       'Install it with: npm install node-pty',
     )
+  }
+  ensureSpawnHelperExecutable(dirname(dirname(peer.path)))
+  return peer.mod
+}
+
+/**
+ * node-pty's macOS prebuilds can install `spawn-helper` without its execute
+ * bit, and every spawn then fails with "posix_spawnp failed".
+ */
+function ensureSpawnHelperExecutable(nodePtyDir: string): void {
+  const helpers = [
+    join(nodePtyDir, 'prebuilds', `${process.platform}-${process.arch}`, 'spawn-helper'),
+    join(nodePtyDir, 'build', 'Release', 'spawn-helper'),
+  ]
+  for (const helper of helpers) {
+    try {
+      if ((statSync(helper).mode & 0o111) === 0) chmodSync(helper, 0o755)
+    } catch {
+      // Missing (other platforms, other build layout) or read-only: spawn reports the real error
+    }
   }
 }
 

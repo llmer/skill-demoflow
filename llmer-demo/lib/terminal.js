@@ -5,16 +5,39 @@
  * then records the terminal session as video using the existing pipeline.
  */
 import { createServer } from 'http';
-import { mkdirSync } from 'fs';
+import { chmodSync, mkdirSync, statSync } from 'fs';
+import { dirname, join } from 'path';
 import { generateTerminalHtml } from './terminal-page.js';
 import { chromium, requirePeer } from './peer.js';
 async function loadNodePty() {
+    let peer;
     try {
-        return requirePeer('node-pty').mod;
+        peer = requirePeer('node-pty');
     }
     catch {
         throw new Error('node-pty is required for terminal recording but not installed.\n' +
             'Install it with: npm install node-pty');
+    }
+    ensureSpawnHelperExecutable(dirname(dirname(peer.path)));
+    return peer.mod;
+}
+/**
+ * node-pty's macOS prebuilds can install `spawn-helper` without its execute
+ * bit, and every spawn then fails with "posix_spawnp failed".
+ */
+function ensureSpawnHelperExecutable(nodePtyDir) {
+    const helpers = [
+        join(nodePtyDir, 'prebuilds', `${process.platform}-${process.arch}`, 'spawn-helper'),
+        join(nodePtyDir, 'build', 'Release', 'spawn-helper'),
+    ];
+    for (const helper of helpers) {
+        try {
+            if ((statSync(helper).mode & 0o111) === 0)
+                chmodSync(helper, 0o755);
+        }
+        catch {
+            // Missing (other platforms, other build layout) or read-only: spawn reports the real error
+        }
     }
 }
 // Unique marker injected into PS1 for reliable prompt detection

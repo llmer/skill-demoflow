@@ -5,7 +5,7 @@
  * then records the terminal session as video using the existing pipeline.
  */
 import { type Server } from 'http';
-import { type WebSocket } from 'ws';
+import type { WebSocket } from 'ws';
 import { type TerminalTheme } from './terminal-page.js';
 import type { RecordingSession } from './browser.js';
 import type { DesktopFrameOptions } from './frame.js';
@@ -72,7 +72,7 @@ export interface TerminalSession extends RecordingSession {
     _ws: WebSocket | null;
     /** @internal prompt marker for detection */
     _promptMarker: string;
-    /** @internal cleanup function — called before finalize */
+    /** @internal kills the PTY and closes the server — finalize() calls it */
     _cleanup: () => Promise<void>;
 }
 /**

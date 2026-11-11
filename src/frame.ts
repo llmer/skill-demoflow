@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test'
+import { chromium } from './peer.js'
 import { join } from 'path'
 
 export interface FrameComponents {

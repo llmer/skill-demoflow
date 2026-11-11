@@ -2,6 +2,12 @@ import { execSync } from 'child_process';
 import { existsSync, unlinkSync } from 'fs';
 import { computeZoomAtTime } from './zoom.js';
 /**
+ * tsx and esbuild (keepNames) wrap named functions in `__name(fn, "name")`, so a
+ * function passed to page.evaluate() from a tsx script can call `__name` in the
+ * browser, where it doesn't exist. Define it as a no-op on every page.
+ */
+export const NAME_SHIM_SCRIPT = 'globalThis.__name ??= (fn) => fn';
+/**
  * Click visualization script injected into every page via addInitScript.
  * Draws a red expanding/fading circle at each click point — captured in video.
  */

@@ -1,7 +1,7 @@
-import { chromium } from '@playwright/test';
+import { chromium } from './peer.js';
 import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs';
 import { join } from 'path';
-import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim, convertToMp4WithZoom, convertToMp4WithSpeed, convertToGif } from './recorder.js';
+import { CLICK_VIS_SCRIPT, NAME_SHIM_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim, convertToMp4WithZoom, convertToMp4WithSpeed, convertToGif } from './recorder.js';
 import { renderFrame } from './frame.js';
 import { getGitState, getLibHash, hashFile, readManifest, writeManifest } from './manifest.js';
 import { getDevicePreset } from './devices.js';
@@ -172,6 +172,7 @@ export async function launchWithRecording(options) {
             userAgent: preset.userAgent,
         } : {}),
     });
+    await context.addInitScript(NAME_SHIM_SCRIPT);
     const page = await context.newPage();
     await page.addInitScript(CLICK_VIS_SCRIPT);
     if (effects.cursorTelemetry) {
@@ -239,6 +240,8 @@ export async function finalize(session, overrides) {
     await page.close();
     await context.close();
     await browser.close();
+    // Without this a terminal session's PTY and server keep the process alive
+    await session._cleanup?.();
     const harPath = join(outputDir, 'recording.har');
     let webmPath = null;
     let mp4Path = null;

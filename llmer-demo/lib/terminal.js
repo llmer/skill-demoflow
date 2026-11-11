@@ -4,18 +4,41 @@
  * Launches xterm.js in Playwright connected to a real PTY via node-pty,
  * then records the terminal session as video using the existing pipeline.
  */
-import { chromium } from '@playwright/test';
 import { createServer } from 'http';
-import { mkdirSync } from 'fs';
-import { WebSocketServer } from 'ws';
+import { chmodSync, mkdirSync, statSync } from 'fs';
+import { dirname, join } from 'path';
 import { generateTerminalHtml } from './terminal-page.js';
+import { chromium, requirePeer } from './peer.js';
+import { NAME_SHIM_SCRIPT } from './recorder.js';
 async function loadNodePty() {
+    let peer;
     try {
-        return await import('node-pty');
+        peer = requirePeer('node-pty');
     }
     catch {
         throw new Error('node-pty is required for terminal recording but not installed.\n' +
             'Install it with: npm install node-pty');
+    }
+    ensureSpawnHelperExecutable(dirname(dirname(peer.path)));
+    return peer.mod;
+}
+/**
+ * node-pty's macOS prebuilds can install `spawn-helper` without its execute
+ * bit, and every spawn then fails with "posix_spawnp failed".
+ */
+function ensureSpawnHelperExecutable(nodePtyDir) {
+    const helpers = [
+        join(nodePtyDir, 'prebuilds', `${process.platform}-${process.arch}`, 'spawn-helper'),
+        join(nodePtyDir, 'build', 'Release', 'spawn-helper'),
+    ];
+    for (const helper of helpers) {
+        try {
+            if ((statSync(helper).mode & 0o111) === 0)
+                chmodSync(helper, 0o755);
+        }
+        catch {
+            // Missing (other platforms, other build layout) or read-only: spawn reports the real error
+        }
     }
 }
 // Unique marker injected into PS1 for reliable prompt detection
@@ -57,6 +80,7 @@ function sleep(ms) {
  */
 export async function launchTerminal(options) {
     const nodePty = await loadNodePty();
+    const { WebSocketServer } = requirePeer('ws').mod;
     const { outputDir, viewport = { width: 960, height: 600 }, headed = true, desktopFrame = true, scenarioPath, targetPath, shell = process.env.SHELL || '/bin/zsh', cwd = process.cwd(), env: extraEnv = {}, theme, fontSize = 14, fontFamily, typingSpeed = 50, } = options;
     const frameOptions = desktopFrame === false ? null :
         desktopFrame === true ? { style: 'macos-terminal' } :
@@ -139,6 +163,7 @@ export async function launchTerminal(options) {
         },
         viewport,
     });
+    await context.addInitScript(NAME_SHIM_SCRIPT);
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${serverPort}`);
     // Wait for xterm.js to initialize and connect
@@ -236,7 +261,11 @@ export async function launchTerminal(options) {
                 }
                 catch { /* already dead */ }
             }
+            // ws v8 leaves open clients on close(), and server.close() waits for every connection
+            for (const client of wss.clients)
+                client.terminate();
             wss.close();
+            server.closeAllConnections();
             await new Promise((resolve) => server.close(() => resolve()));
         },
     };

@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium } from './peer.js';
 import { join } from 'path';
 const MACOS_TITLE_BAR_HEIGHT = 52;
 const MACOS_BOTTOM_EDGE = 8;

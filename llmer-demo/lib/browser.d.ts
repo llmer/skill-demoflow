@@ -1,4 +1,4 @@
-import { type Browser, type BrowserContext, type Page } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { type DesktopFrameOptions, type FrameComponents } from './frame.js';
 import type { ElementHit, ZoomRegion, SpeedRegion, Annotation, ScenarioEffects, GifOptions } from './types.js';
 export interface RecordingOptions {
@@ -66,6 +66,10 @@ export interface RecordingSession {
     _annotations: Annotation[];
     /** @internal scenario-level effect configuration */
     _effects: ScenarioEffects;
+    /** @internal current caption text from `caption` steps; undefined until the first one */
+    _caption?: string;
+    /** @internal releases what the session opened besides the browser (terminal PTY and server) */
+    _cleanup?: () => Promise<void>;
 }
 export interface RecordingResult {
     harPath: string;

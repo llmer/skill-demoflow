@@ -94,6 +94,10 @@ export type Step = {
     action: 'exec';
     fn: (ctx: StepContext) => Promise<void>;
     description?: string;
+} | {
+    action: 'caption';
+    text: string;
+    description?: string;
 };
 export interface StepContext {
     page: Page;

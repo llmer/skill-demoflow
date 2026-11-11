@@ -1,7 +1,8 @@
-import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test'
+import type { Browser, BrowserContext, Page } from '@playwright/test'
+import { chromium } from './peer.js'
 import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { CLICK_VIS_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim, convertToMp4WithZoom, convertToMp4WithSpeed, convertToGif } from './recorder.js'
+import { CLICK_VIS_SCRIPT, NAME_SHIM_SCRIPT, compositeWithFrame, convertToMp4, convertToMp4WithTrim, convertToMp4WithZoom, convertToMp4WithSpeed, convertToGif } from './recorder.js'
 import { renderFrame, type DesktopFrameOptions, type FrameComponents } from './frame.js'
 import { getGitState, getLibHash, hashFile, readManifest, writeManifest, type Manifest } from './manifest.js'
 import { getDevicePreset } from './devices.js'
@@ -71,6 +72,10 @@ export interface RecordingSession {
   _annotations: Annotation[]
   /** @internal scenario-level effect configuration */
   _effects: ScenarioEffects
+  /** @internal current caption text from `caption` steps; undefined until the first one */
+  _caption?: string
+  /** @internal releases what the session opened besides the browser (terminal PTY and server) */
+  _cleanup?: () => Promise<void>
 }
 
 export interface RecordingResult {
@@ -293,6 +298,7 @@ export async function launchWithRecording(
     } : {}),
   })
 
+  await context.addInitScript(NAME_SHIM_SCRIPT)
   const page = await context.newPage()
   await page.addInitScript(CLICK_VIS_SCRIPT)
   if (effects.cursorTelemetry) {
@@ -368,6 +374,8 @@ export async function finalize(
   await page.close()
   await context.close()
   await browser.close()
+  // Without this a terminal session's PTY and server keep the process alive
+  await session._cleanup?.()
 
   const harPath = join(outputDir, 'recording.har')
   let webmPath: string | null = null

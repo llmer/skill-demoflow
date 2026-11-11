@@ -200,6 +200,7 @@ Write a script to `scripts/demo-{scenario-name}.ts` (e.g. `demo-full-workflow.ts
 | `input` | `message`, `saveAs?` | Prompt user for input (OTP, etc.) — auto-pauses video |
 | `pause` / `resume` | — | Manually trim idle time from video |
 | `exec` | `fn(ctx)` | Escape hatch for custom logic (OTP fetch, API calls) |
+| `caption` | `text` | Show a caption bar at the bottom of the page until the next `caption` step. Survives navigations; `''` clears it. Use this for narration: step `annotation`s only show for 500ms |
 
 #### Target resolution (`target` field)
 
